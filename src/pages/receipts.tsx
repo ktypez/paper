@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Trash2, LayoutGrid, TableIcon, AlertCircle } from "lucide-react";
+import { Plus, Search, Trash2, LayoutGrid, TableIcon, AlertCircle, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -32,6 +32,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useReceipts } from "@/hooks/use-receipts";
 import { useCategories } from "@/hooks/use-categories";
+import { ArchiveStack } from "@/components/archive-stack";
 
 import { getFileUrl } from "@/lib/api";
 import { stripExtension } from "@/lib/utils";
@@ -127,7 +128,7 @@ export function Receipts() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>All Documents</CardTitle>
+          <CardTitle className="font-display text-lg">All Documents</CardTitle>
           <Button asChild>
             <Link to="/upload">
               <Plus className="mr-1 h-4 w-4" /> Upload
@@ -178,10 +179,34 @@ export function Receipts() {
               Loading...
             </div>
           ) : paged.length === 0 ? (
-            <div className="py-20 text-center text-muted-foreground">
-              {receipts.length === 0
-                ? "No documents yet."
-                : "No documents match your filters."}
+            <div className="flex flex-col items-center gap-4 py-16 text-center">
+              <ArchiveStack />
+              <div className="space-y-1">
+                <h3 className="font-display text-lg text-foreground">
+                  {receipts.length === 0
+                    ? "ยังไม่มีเอกสาร"
+                    : "ไม่พบเอกสารที่ตรงกับเงื่อนไข"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {receipts.length === 0
+                    ? "อัปโหลดเอกสารแรกของคุณ โดยเริ่มจากปุ่ม Upload ด้านบน"
+                    : "ลองปรับคำค้นหรือตัวกรอง แล้วลองอีกครั้ง"}
+                </p>
+              </div>
+              {receipts.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearch("");
+                    setCategoryFilter("all");
+                    setOwnerFilter("all");
+                    setPage(1);
+                  }}
+                >
+                  <FilterX className="mr-1 h-4 w-4" /> Clear filters
+                </Button>
+              )}
             </div>
           ) : (
             <>
@@ -358,7 +383,7 @@ export function Receipts() {
 
               <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
                 <span>
-                  Showing {(page - 1) * PAGE_SIZE + 1}–
+                  Showing {(page - 1) * PAGE_SIZE + 1}-
                   {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
                   {filtered.length}
                 </span>

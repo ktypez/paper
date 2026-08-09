@@ -1,83 +1,21 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router";
-import { Upload, ReceiptText, Tags, ArrowRight } from "lucide-react";
+import { Upload, ReceiptText, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useReceipts } from "@/hooks/use-receipts";
-import { useCategories } from "@/hooks/use-categories";
 import { formatDateShort, formatSize } from "@/lib/utils";
 import { getFileUrl } from "@/lib/api";
+import { QuickUpload } from "@/components/quick-upload";
+import { ArchiveStack } from "@/components/archive-stack";
 import type { Receipt } from "@/types";
-
-function AnimatedCounter({ value }: { value: number }) {
-  const [count, setCount] = useState(value);
-  const prevRef = useRef(value);
-
-  useEffect(() => {
-    const prev = prevRef.current;
-    prevRef.current = value;
-    if (prev === value) return;
-
-    const start = prev;
-    const diff = value - prev;
-    const duration = 400;
-    const step = diff / (duration / 16);
-    let current = start;
-    const timer = setInterval(() => {
-      current += step;
-      if (Math.abs(current - value) < Math.abs(step)) {
-        setCount(value);
-        clearInterval(timer);
-      } else {
-        setCount(Math.round(current));
-      }
-    }, 16);
-    return () => clearInterval(timer);
-  }, [value]);
-
-  return <>{count}</>;
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  href,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: number;
-  href: string;
-}) {
-  return (
-    <Card className="overflow-hidden">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
-          {label}
-        </CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
-      </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold tabular-nums">
-          <AnimatedCounter value={value} />
-        </div>
-        <Link
-          to={href}
-          className="mt-1 inline-flex items-center text-xs text-primary hover:underline"
-        >
-          View all <ArrowRight className="ml-1 h-3 w-3" />
-        </Link>
-      </CardContent>
-    </Card>
-  );
-}
 
 function RecentReceipt({ r }: { r: Receipt }) {
   return (
     <Link
       to={`/receipts/${r.id}`}
-      className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-[rgba(28,28,28,0.04)]"
+      className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/60"
     >
       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background overflow-hidden">
         {r.content_type.startsWith("image/") ? (
@@ -103,17 +41,23 @@ function RecentReceipt({ r }: { r: Receipt }) {
   );
 }
 
+function EmptyArchive() {
+  return (
+    <div className="flex flex-col items-center gap-4 py-12 text-center">
+      <ArchiveStack />
+      <div className="space-y-1">
+        <h3 className="font-display text-lg text-foreground">ยังไม่มีเอกสาร</h3>
+        <p className="text-sm text-muted-foreground">
+          อัปโหลดเอกสารแรกของคุณเพื่อเริ่มต้นจัดระเบียบ
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function Dashboard() {
-  const { receipts, loading: loadingReceipts } = useReceipts();
-  const { categories, loading: loadingCategories } = useCategories();
+  const { receipts, loading, reload } = useReceipts();
   const recent = useMemo(() => receipts.slice(0, 5), [receipts]);
-
-  const last7 = receipts.filter((r) => {
-    const diff = Date.now() - new Date(r.uploaded_at).getTime();
-    return diff < 7 * 24 * 60 * 60 * 1000;
-  });
-
-  const loading = loadingReceipts || loadingCategories;
 
   if (loading) {
     return (
@@ -125,56 +69,54 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard
-          icon={ReceiptText}
-          label="Total Documents"
-          value={receipts.length}
-          href="/receipts"
-        />
-        <StatCard
-          icon={Upload}
-          label="Uploaded This Week"
-          value={last7.length}
-          href="/receipts"
-        />
-        <StatCard
-          icon={Tags}
-          label="Categories"
-          value={categories.length}
-          href="/categories"
-        />
-      </div>
+      {/* Hero band */}
+      <section className="relative overflow-hidden rounded-lg border border-border bg-card p-6 lg:p-8">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-md space-y-2">
+            <h2 className="font-display text-3xl leading-tight tracking-tight text-foreground">
+              ยินดีต้อนรับกลับ
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              อัปโหลดเอกสารใหม่ หรือเรียกดูเอกสารล่าสุดของคุณต่อได้เลย
+            </p>
+          </div>
+          <ArchiveStack className="hidden justify-end lg:flex" />
+        </div>
+      </section>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Recent Documents</CardTitle>
-          <Button variant="outline" size="sm" asChild>
-            <Link to="/receipts">
-              View all <ArrowRight className="ml-1 h-4 w-4" />
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          {recent.length === 0 ? (
-            <div className="flex flex-col items-center gap-3 py-10 text-center">
-              <Upload className="h-10 w-10 text-muted-foreground/50" />
-              <p className="text-sm text-muted-foreground">
-                No documents yet. Upload your first document!
-              </p>
-              <Button asChild>
-                <Link to="/upload">Upload Document</Link>
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {recent.map((r) => (
-                <RecentReceipt key={r.id} r={r} />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Quick upload + recent, asymmetric on desktop */}
+      <div className="grid gap-6 lg:grid-cols-5">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-3">
+            <CardTitle className="font-display text-base">Quick Upload</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <QuickUpload onUploaded={reload} />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle className="font-display text-base">Recent Documents</CardTitle>
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/receipts">
+                View all <ArrowRight className="ml-1 h-4 w-4" />
+              </Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {recent.length === 0 ? (
+              <EmptyArchive />
+            ) : (
+              <div className="space-y-2">
+                {recent.map((r) => (
+                  <RecentReceipt key={r.id} r={r} />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

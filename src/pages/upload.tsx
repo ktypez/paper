@@ -24,43 +24,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
 import { useCategories } from "@/hooks/use-categories";
 import { uploadReceiptWithProgress } from "@/lib/api";
 import { toast } from "sonner";
 import { formatSize } from "@/lib/utils";
-
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-];
-const MAX_SIZE = 3 * 1024 * 1024;
-const COMPRESS_MAX = 2048;
-const COMPRESS_QUALITY = 0.8;
-
-async function compressImage(file: File): Promise<File> {
-  const img = await createImageBitmap(file);
-  let { width, height } = img;
-  if (width > COMPRESS_MAX || height > COMPRESS_MAX) {
-    const ratio = Math.min(COMPRESS_MAX / width, COMPRESS_MAX / height);
-    width = Math.round(width * ratio);
-    height = Math.round(height * ratio);
-  }
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d")!;
-  ctx.drawImage(img, 0, 0, width, height);
-  img.close();
-  const blob = await new Promise<Blob>((r) =>
-    canvas.toBlob((b) => r(b!), "image/webp", COMPRESS_QUALITY)
-  );
-  return new File([blob], file.name.replace(/\.\w+$/, ".webp"), {
-    type: "image/webp",
-  });
-}
+import { validateFile, compressImage } from "@/lib/upload-utils";
 
 export function Upload() {
   const navigate = useNavigate();
@@ -84,15 +54,7 @@ export function Upload() {
     };
   }, [previewUrl]);
 
-  const validate = (f: File): string | null => {
-    if (!ALLOWED_TYPES.includes(f.type)) {
-      return "Invalid file type. Allowed: JPEG, PNG, WebP, PDF";
-    }
-    if (f.size > 10 * 1024 * 1024) {
-      return "File too large. Maximum 10 MB";
-    }
-    return null;
-  };
+  const validate = (f: File): string | null => validateFile(f);
 
   const handleFile = async (f: File) => {
     const err = validate(f);
@@ -183,7 +145,7 @@ export function Upload() {
     <div className="mx-auto max-w-2xl space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Upload Document</CardTitle>
+          <CardTitle className="font-display text-lg">Upload Document</CardTitle>
           <CardDescription>
             Drop a file or click to select. Supported: JPEG, PNG, WebP, PDF.
             Images are compressed to WebP for smaller storage.
@@ -365,7 +327,7 @@ export function Upload() {
                 disabled={!category || uploading}
               >
                 {uploading ? (
-                  <>{uploadProgress}% — Uploading...</>
+                  <>{uploadProgress}% · Uploading...</>
                 ) : (
                   <>
                     <UploadIcon className="mr-1 h-4 w-4" /> Upload Document

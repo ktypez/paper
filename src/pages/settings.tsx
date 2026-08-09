@@ -1,23 +1,28 @@
-import { Sun, Moon, FileText, HardDrive, LogOut } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Sun,
+  Moon,
+  FileText,
+  HardDrive,
+  LogOut,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { useTheme } from "@/lib/theme-provider";
-import { useAuth } from "@/lib/auth-context";
 import { useReceipts } from "@/hooks/use-receipts";
-import { formatSize } from "@/lib/utils";
+import { useClerk } from "@clerk/clerk-react";import { formatSize } from "@/lib/utils";
 
 export function Settings() {
   const { theme, toggle } = useTheme();
-  const { logout } = useAuth();
   const { receipts } = useReceipts();
+  const { signOut } = useClerk();
   const totalStorage = receipts.reduce((sum, r) => sum + r.size, 0);
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Preferences</CardTitle>
+          <CardTitle className="font-display text-lg">Preferences</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
@@ -81,7 +86,7 @@ export function Settings() {
             <FileText className="h-4 w-4" />
             <span className="font-medium text-foreground">Paper</span>
           </div>
-          <p>Version 2.0.0 — Personal document storage.</p>
+          <p>Version 2.0.0. Personal document storage.</p>
           <Separator />
           <p>
             Built with React, shadcn/ui, and Cloudflare (D1 + R2 + Pages).
@@ -90,7 +95,14 @@ export function Settings() {
       </Card>
 
       <div className="flex justify-center">
-        <Button variant="outline" className="gap-2 text-destructive" onClick={logout}>
+        <Button
+          variant="outline"
+          className="gap-2 text-destructive"
+          onClick={async () => {
+            await signOut();
+            window.location.assign("/");
+          }}
+        >
           <LogOut className="h-4 w-4" /> Sign out
         </Button>
       </div>

@@ -25,3 +25,7 @@ CREATE INDEX IF NOT EXISTS idx_categories_order ON categories(sort_order);
 --   ALTER TABLE receipts ADD COLUMN owner TEXT;
 --   DROP TABLE IF EXISTS subcategories;
 -- Rows keep sort_order = 0 (ordered by created_at) until reordered via the UI.
+
+-- Auth tables (user, session, account, verification) are managed by
+-- Better Auth (v1.6.x, lib/auth.ts) and were created automatically on the
+-- first deploy via the temporary /api/setup bootstrap endpoint.

@@ -1,12 +1,6 @@
 import { NavLink } from "react-router";
 import { motion } from "framer-motion";
-import {
-  LayoutDashboard,
-  FileText,
-  Upload,
-  Tags,
-  Settings,
-} from "lucide-react";
+import { FileText, Upload, Tags, Settings, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -25,15 +19,15 @@ export function Sidebar({ open }: SidebarProps) {
   return (
     <motion.aside
       initial={false}
-      animate={{
-        x: open ? 0 : -224,
-      }}
+      animate={{ x: open ? 0 : -224 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
-      className="fixed top-0 left-0 z-40 flex h-screen w-56 flex-col bg-background border-r border-border"
+      className="fixed top-0 left-0 z-40 flex h-dvh w-56 flex-col bg-sidebar border-r border-sidebar-border"
     >
-      <div className="flex h-14 items-center gap-2 border-b border-border px-4">
-        <span className="flex items-center gap-2 font-semibold tracking-tight text-foreground">
-          <FileText className="h-5 w-5" />
+      <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border bg-background">
+          <FileText className="h-4 w-4 text-primary" />
+        </span>
+        <span className="font-display text-xl font-semibold tracking-tight text-sidebar-foreground">
           Paper
         </span>
       </div>
@@ -46,10 +40,10 @@ export function Sidebar({ open }: SidebarProps) {
             end={item.to === "/"}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors active:scale-[0.98]",
                 isActive
-                  ? "bg-muted text-foreground"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
               )
             }
           >

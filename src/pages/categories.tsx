@@ -128,7 +128,7 @@ export function Categories() {
     <div className="space-y-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Manage Categories</CardTitle>
+          <CardTitle className="font-display text-lg">Manage Categories</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="mb-4 text-xs text-muted-foreground">
@@ -219,7 +219,7 @@ export function Categories() {
                             <DialogDescription>
                               {(receiptCounts[c.name] || 0) > 0 ? (
                                 <span className="text-destructive">
-                                  Cannot delete "{c.name}" —{" "}
+                                  Cannot delete "{c.name}."{" "}
                                   {receiptCounts[c.name]} document(s) are using
                                   this category. Reassign them first.
                                 </span>

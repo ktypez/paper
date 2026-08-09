@@ -1,12 +1,11 @@
 # paper
 
 ## KB
-- `~/OKF/projects/paper/profile.md` — tech stack, architecture
-- `~/OKF/projects/paper/status.md` — project status (routes, design, changelog)
-- `~/OKF/projects/paper/commands.md` — dev commands
-- `~/OKF/system/conventions.md` — communication rules, Termux setup
-- `~/OKF/system/workspace.md` — cross-project comparison, dev commands
-- `~/OKF/skills/INDEX.md` — available skills
+Project context is stored in Second Brain (brain.mcky.space via secondbrain MCP).
+Use `recall` to retrieve context, `remember` to save new info.
+- `recall query="paper project"` — tech stack, architecture, commands
+- `recall query="paper agent"` — personality, key context
+- Tags: `paper`, `project`
 
 ## Stack
 - Vite 8 + React 19 + TypeScript 7
@@ -24,3 +23,8 @@
 
 ## Local
 - Env: wrangler config
+
+## MCP Source Cite
+When answering using data from an MCP server, indicate the source in square brackets at the end:
+- `[source: brain]` — from brain.mcky.space
+- `[source: context7]` — from library docs

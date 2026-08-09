@@ -1,5 +1,6 @@
 name = "receipts-dms"
 compatibility_date = "2026-07-09"
+compatibility_flags = ["nodejs_als", "nodejs_compat"]
 pages_build_output_dir = "./public"
 
 [[d1_databases]]

@@ -14,6 +14,17 @@ export default defineConfig({
     outDir: "./public",
     emptyOutDir: true,
     chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return undefined;
+          if (id.includes("@clerk")) return "clerk";
+          if (id.includes("framer-motion") || id.includes("motion")) return "motion";
+          if (id.includes("react") || id.includes("scheduler")) return "react";
+          return "vendor";
+        },
+      },
+    },
   },
   publicDir: "static",
   server: {
