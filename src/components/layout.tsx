@@ -13,22 +13,29 @@ export function Layout() {
 
   return (
     <div className="min-h-[100dvh] bg-background">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-[9999] focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none"
+      >
+        Skip to main content
+      </a>
+
       {isMobile ? <BottomNav /> : <Sidebar open={sidebarOpen} />}
 
       <div
         className={cn(
           "transition-all duration-300",
           !isMobile && sidebarOpen && "ml-56",
-          isMobile && "pb-20"  // Space for bottom nav
+          isMobile && "pb-20"
         )}
       >
         <Topbar onToggleSidebar={() => setSidebarOpen((v) => !v)} />
-        <main className="p-4 lg:p-6">
+        <main id="main-content" className="p-4 lg:p-6" tabIndex={-1}>
           <Outlet />
         </main>
       </div>
 
-      <Toaster position="bottom-right" richColors closeButton />
+      <Toaster position="bottom-right" richColors closeButton duration={4000} />
     </div>
   );
 }
