@@ -4,6 +4,7 @@ import { Upload, ReceiptText, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { TouchArea } from "@/components/ui/touch-area";
 import { useReceipts } from "@/hooks/use-receipts";
 import { formatDateShort, formatSize } from "@/lib/utils";
 import { getFileUrl } from "@/lib/api";
@@ -17,7 +18,7 @@ function RecentReceipt({ r }: { r: Receipt }) {
       to={`/receipts/${r.id}`}
       className="flex items-center gap-3 rounded-lg border border-border p-3 transition-colors hover:bg-muted/60"
     >
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background overflow-hidden">
+      <TouchArea className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-border bg-background">
         {r.content_type.startsWith("image/") ? (
           <img
             src={getFileUrl(r.id)}
@@ -27,7 +28,7 @@ function RecentReceipt({ r }: { r: Receipt }) {
         ) : (
           <ReceiptText className="h-5 w-5 text-muted-foreground" />
         )}
-      </div>
+      </TouchArea>
       <div className="flex-1 min-w-0">
         <p className="truncate text-sm font-medium">{r.filename}</p>
         <p className="text-xs text-muted-foreground">

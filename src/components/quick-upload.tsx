@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload as UploadIcon, FileText, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TouchArea } from "@/components/ui/touch-area";
 import {
   Select,
   SelectContent,
@@ -89,17 +90,18 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
   return (
     <div className="space-y-3">
       {!file && !compressing ? (
-        <motion.div
-          onDrop={handleDrop}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onClick={() => fileInputRef.current?.click()}
-          animate={{ scale: dragOver ? 1.01 : 1 }}
-          transition={{ type: "spring", stiffness: 300, damping: 20 }}
-          className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-6 py-8 text-center transition-all ${
+        <TouchArea asChild>
+          <motion.div
+            onDrop={handleDrop}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDragOver(true);
+            }}
+            onDragLeave={() => setDragOver(false)}
+            onClick={() => fileInputRef.current?.click()}
+            animate={{ scale: dragOver ? 1.01 : 1 }}
+            transition={{ type: "spring", stiffness: 300, damping: 20 }}
+            className={`flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-6 py-8 text-center transition-all ${
             dragOver
               ? "border-primary bg-primary/5"
               : "border-muted-foreground/25 hover:border-muted-foreground/50"
@@ -125,6 +127,7 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
             }}
           />
         </motion.div>
+        </TouchArea>
       ) : compressing ? (
         <div className="flex items-center justify-center gap-3 py-8 text-sm text-muted-foreground">
           <div className="h-5 w-5 animate-spin rounded-full border-2 border-muted border-t-primary" />
@@ -138,9 +141,9 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
           className="space-y-3 rounded-lg border p-4"
         >
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-background">
+            <TouchArea className="h-10 w-10 shrink-0 overflow-hidden rounded-md border border-border bg-background">
               <FileText className="h-5 w-5 text-muted-foreground" />
-            </div>
+            </TouchArea>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{file?.name}</p>
               <p className="text-xs text-muted-foreground">

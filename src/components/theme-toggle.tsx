@@ -1,5 +1,6 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { TouchArea } from "@/components/ui/touch-area";
 import { useTheme } from "@/lib/theme-provider";
 import {
   Tooltip,
@@ -15,7 +16,8 @@ export function ThemeToggle() {
     <TooltipProvider delayDuration={100}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button variant="ghost" size="icon" onClick={toggle}>
+          <TouchArea asChild>
+            <Button variant="ghost" size="icon" onClick={toggle}>
             {theme === "light" ? (
               <Moon className="h-5 w-5" />
             ) : (
@@ -23,6 +25,7 @@ export function ThemeToggle() {
             )}
             <span className="sr-only">Toggle theme</span>
           </Button>
+          </TouchArea>
         </TooltipTrigger>
         <TooltipContent side="bottom">
           Switch to {theme === "light" ? "dark" : "light"} mode

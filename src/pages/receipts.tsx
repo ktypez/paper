@@ -29,6 +29,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { TouchArea } from "@/components/ui/touch-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useReceipts } from "@/hooks/use-receipts";
 import { useCategories } from "@/hooks/use-categories";
@@ -196,7 +197,7 @@ export function Receipts() {
               {receipts.length > 0 && (
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={() => {
                     setSearch("");
                     setCategoryFilter("all");
@@ -250,7 +251,7 @@ export function Receipts() {
                         <TableRow key={r.id}>
                           <TableCell>
                             <Link to={`/receipts/${r.id}`}>
-                              <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md border border-border bg-background hover:ring-2 hover:ring-ring">
+                              <TouchArea className="overflow-hidden rounded-md border border-border bg-background hover:ring-2 hover:ring-ring">
                                 {r.content_type.startsWith("image/") ? (
                                   <img
                                     src={getFileUrl(r.id)}
@@ -260,7 +261,7 @@ export function Receipts() {
                                 ) : (
                                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
                                 )}
-                              </div>
+                              </TouchArea>
                             </Link>
                           </TableCell>
                           <TableCell className="font-medium">
@@ -342,9 +343,9 @@ export function Receipts() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="ml-auto h-6 w-6 text-destructive/60 opacity-0 hover:text-destructive group-hover:opacity-100"
+                                className="ml-auto text-destructive/60 opacity-0 hover:text-destructive group-hover:opacity-100"
                               >
-                                <Trash2 className="h-3 w-3" />
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
@@ -388,22 +389,22 @@ export function Receipts() {
                   {filtered.length}
                 </span>
                 <div className="flex gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1}
-                    onClick={() => setPage((p) => p - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                  >
-                    Next
-                  </Button>
+                <Button
+                  variant="outline"
+                  size="default"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="default"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
                 </div>
               </div>
             </>

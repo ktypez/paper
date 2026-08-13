@@ -34,7 +34,7 @@ export function Settings() {
             </div>
             <Button
               variant="outline"
-              size="sm"
+              size="default"
               onClick={toggle}
               className="gap-2"
             >
