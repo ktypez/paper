@@ -33,6 +33,7 @@ import { TouchArea } from "@/components/ui/touch-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useReceipts } from "@/hooks/use-receipts";
 import { useCategories } from "@/hooks/use-categories";
+import { useMediaQuery } from "@/lib/use-media-query";
 import { ArchiveStack } from "@/components/archive-stack";
 
 import { getFileUrl } from "@/lib/api";
@@ -44,6 +45,7 @@ const PAGE_SIZE = 20;
 export function Receipts() {
   const { receipts, loading, error, remove, reload } = useReceipts();
   const { categories } = useCategories();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
 
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
@@ -52,6 +54,9 @@ export function Receipts() {
   const [view, setView] = useState<"table" | "card">("card");
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Auto-switch to card view on mobile/tablet
+  const effectiveView = isDesktop ? view : "card";
 
   const owners = useMemo(() => {
     const set = new Set<string>();
@@ -212,24 +217,28 @@ export function Receipts() {
           ) : (
             <>
               <div className="mb-3 flex items-center justify-end gap-1">
-                <Button
-                  variant={view === "table" ? "default" : "ghost"}
-                  size="icon"
-                  onClick={() => setView("table")}
-                >
-                  <TableIcon className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={view === "card" ? "default" : "ghost"}
-                  size="icon"
-                  onClick={() => setView("card")}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
+                {isDesktop && (
+                  <>
+                    <Button
+                      variant={view === "table" ? "default" : "ghost"}
+                      size="icon"
+                      onClick={() => setView("table")}
+                    >
+                      <TableIcon className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant={view === "card" ? "default" : "ghost"}
+                      size="icon"
+                      onClick={() => setView("card")}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
               </div>
 
               <AnimatePresence mode="wait">
-              {view === "table" ? (
+              {effectiveView === "table" ? (
                 <motion.div
                   key="table"
                   initial={{ opacity: 0, y: 8 }}
