@@ -25,9 +25,9 @@ export function Layout() {
       <div
         className={cn(
           "transition-all duration-300",
-          !isMobile && sidebarOpen && "ml-56",
-          isMobile && "pb-20"
+          !isMobile && sidebarOpen && "ml-56"
         )}
+        style={isMobile ? { paddingBottom: "calc(5rem + env(safe-area-inset-bottom, 0px))" } : undefined}
       >
         <Topbar onToggleSidebar={() => setSidebarOpen((v) => !v)} />
         <main id="main-content" className="p-4 lg:p-6" tabIndex={-1}>
