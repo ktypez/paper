@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -112,8 +113,26 @@ export function ReceiptDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">
-        Loading...
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Header skeleton */}
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-9 w-9 rounded-md" />
+          <Skeleton className="h-6 w-48" />
+        </div>
+        {/* Content skeleton */}
+        <div className="rounded-xl border border-border bg-card p-6">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Skeleton className="aspect-[3/4] w-full rounded-md" />
+            <div className="space-y-4">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-1.5">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

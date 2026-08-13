@@ -4,6 +4,7 @@ import { Upload, ReceiptText, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TouchArea } from "@/components/ui/touch-area";
 import { useReceipts } from "@/hooks/use-receipts";
 import { formatDateShort, formatSize } from "@/lib/utils";
@@ -62,8 +63,50 @@ export function Dashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 text-muted-foreground">
-        Loading...
+      <div className="space-y-6">
+        {/* Hero skeleton */}
+        <div className="rounded-lg border border-border bg-card p-6 lg:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-48" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <Skeleton className="hidden h-24 w-40 lg:block" />
+          </div>
+        </div>
+        {/* Stats skeleton */}
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-5 w-5 rounded-md" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-8 w-16" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        {/* Recent skeleton */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <Skeleton className="h-5 w-32" />
+            <Skeleton className="h-8 w-20 rounded-md" />
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="flex items-center gap-3 rounded-lg border border-border p-3">
+                <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-5 w-12 rounded-sm" />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }

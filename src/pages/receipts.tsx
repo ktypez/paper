@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, Trash2, LayoutGrid, TableIcon, AlertCircle, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -181,8 +182,29 @@ export function Receipts() {
           </div>
 
           {loading ? (
-            <div className="py-20 text-center text-muted-foreground">
-              Loading...
+            <div className="space-y-4">
+              {/* Table skeleton */}
+              <div className="rounded-xl border border-border overflow-hidden">
+                <div className="px-4 py-3 border-b border-border bg-muted/50">
+                  <div className="flex gap-4">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-4 w-20 hidden md:block" />
+                    <Skeleton className="h-4 w-16 hidden lg:block" />
+                    <Skeleton className="h-4 w-16" />
+                  </div>
+                </div>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
+                    <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
+                    <div className="flex-1 space-y-1.5">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-3 w-24" />
+                    </div>
+                    <Skeleton className="h-5 w-16 rounded-sm hidden md:block" />
+                    <Skeleton className="h-4 w-20 hidden lg:block" />
+                  </div>
+                ))}
+              </div>
             </div>
           ) : paged.length === 0 ? (
             <div className="flex flex-col items-center gap-4 py-16 text-center">

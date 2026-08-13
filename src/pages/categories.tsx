@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -164,8 +165,19 @@ export function Categories() {
           </div>
 
           {loading ? (
-            <div className="py-20 text-center text-muted-foreground">
-              Loading...
+            <div className="space-y-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <Skeleton className="h-5 w-8 rounded-sm" />
+                  <div className="flex shrink-0 gap-1">
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                    <Skeleton className="h-9 w-9 rounded-md" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : categories.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
