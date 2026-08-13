@@ -47,6 +47,16 @@ export function Upload() {
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{
+    category?: string;
+    notes?: string;
+    owner?: string;
+  }>({});
+  const [touched, setTouched] = useState<{
+    category?: boolean;
+    notes?: boolean;
+    owner?: boolean;
+  }>({});
 
   useEffect(() => {
     return () => {
@@ -117,7 +127,7 @@ export function Upload() {
   };
 
   const handleUpload = async () => {
-    if (!file || !category) return;
+    if (!file || !validateFields()) return;
     setUploading(true);
     setUploadProgress(0);
     try {
@@ -139,6 +149,20 @@ export function Upload() {
 
   const onCategoryChange = async (value: string) => {
     setCategory(value);
+    setTouched((t) => ({ ...t, category: true }));
+    setFieldErrors((e) => ({ ...e, category: undefined }));
+  };
+
+  const validateFields = () => {
+    const errs: typeof fieldErrors = {};
+    if (!category) errs.category = "กรุณาเลือกหมวดหมู่";
+    setFieldErrors(errs);
+    setTouched({ category: true, notes: true, owner: true });
+    return Object.keys(errs).length === 0;
+  };
+
+  const handleBlur = (field: "notes" | "owner") => {
+    setTouched((t) => ({ ...t, [field]: true }));
   };
 
   return (
@@ -259,21 +283,26 @@ export function Upload() {
                   id="notes"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Add a note..."
+                  onBlur={() => handleBlur("notes")}
+                  placeholder="เช่น เลขที่ใบเสร็จ, วันที่ซื้อ..."
                   rows={3}
                   disabled={uploading}
                   className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                 />
+                <p className="text-xs text-muted-foreground">เพิ่มหมายเหตุเพื่อค้นหาง่ายขึ้น</p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="category">Category</Label>
+                  <span className="text-xs text-destructive">*</span>
+                </div>
                 <Select
                   value={category}
                   onValueChange={onCategoryChange}
                   disabled={uploading}
                 >
-                  <SelectTrigger id="category">
+                  <SelectTrigger id="category" aria-invalid={!!fieldErrors.category}>
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
@@ -284,17 +313,27 @@ export function Upload() {
                     ))}
                   </SelectContent>
                 </Select>
+                {touched.category && fieldErrors.category ? (
+                  <p className="text-xs text-destructive">{fieldErrors.category}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Required — เลือกหมวดหมู่ที่ตรงกับเอกสาร</p>
+                )}
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="owner">Owner / Folder (optional)</Label>
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="owner">Owner / Folder</Label>
+                  <span className="text-xs text-muted-foreground">(optional)</span>
+                </div>
                 <Input
                   id="owner"
                   value={owner}
                   onChange={(e) => setOwner(e.target.value)}
-                  placeholder="ใครเป็นเจ้าของเอกสารนี้"
+                  onBlur={() => handleBlur("owner")}
+                  placeholder="เช่น คุณแม่, บ้าน, รถ"
                   disabled={uploading}
                 />
+                <p className="text-xs text-muted-foreground">จัดกลุ่มเอกสารตามเจ้าของหรือที่เก็บ</p>
               </div>
 
               <AnimatePresence>

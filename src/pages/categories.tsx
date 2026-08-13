@@ -40,6 +40,8 @@ export function Categories() {
 
   const [dragCat, setDragCat] = useState<string | null>(null);
   const [catDropTarget, setCatDropTarget] = useState<string | null>(null);
+  const [addTouched, setAddTouched] = useState(false);
+  const [editTouched, setEditTouched] = useState(false);
 
   const receiptCounts = receipts.reduce<Record<string, number>>((acc, r) => {
     acc[r.category] = (acc[r.category] || 0) + 1;
@@ -48,6 +50,7 @@ export function Categories() {
 
   const handleAdd = async () => {
     const name = newName.trim();
+    setAddTouched(true);
     if (!name) return;
     setAdding(true);
     try {
@@ -63,6 +66,7 @@ export function Categories() {
 
   const handleEdit = async (id: string) => {
     const name = editName.trim();
+    setEditTouched(true);
     if (!name) return;
     try {
       await update(id, name);
@@ -134,18 +138,29 @@ export function Categories() {
           <p className="mb-4 text-xs text-muted-foreground">
             คลุมแล้วลากเพื่อเรียงลำดับหมวดหมู่
           </p>
-          <div className="mb-6 flex gap-3">
-            <Input
-              placeholder="ชื่อหมวดหมู่ใหม่"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              className="h-10"
-            />
-            <Button onClick={handleAdd} disabled={!newName.trim() || adding}>
-              <Plus className="mr-1 h-4 w-4" />
-              {adding ? "กำลังเพิ่ม..." : "เพิ่ม"}
-            </Button>
+          <div className="mb-6 space-y-2">
+            <div className="flex gap-3">
+              <Input
+                placeholder="ชื่อหมวดหมู่ใหม่"
+                value={newName}
+                onChange={(e) => {
+                  setNewName(e.target.value);
+                  if (addTouched) setAddTouched(false);
+                }}
+                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                aria-invalid={addTouched && !newName.trim()}
+                className="h-11"
+              />
+              <Button onClick={handleAdd} disabled={!newName.trim() || adding} className="h-11">
+                <Plus className="mr-1 h-4 w-4" />
+                {adding ? "กำลังเพิ่ม..." : "เพิ่ม"}
+              </Button>
+            </div>
+            {addTouched && !newName.trim() ? (
+              <p className="text-xs text-destructive">กรุณากรอกชื่อหมวดหมู่</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">ตั้งชื่อสั้น ๆ ชัดเจน เช่น "อาหาร", "ค่าไฟ"</p>
+            )}
           </div>
 
           {loading ? (
@@ -264,19 +279,24 @@ export function Categories() {
                         transition={{ duration: 0.2, ease: "easeInOut" }}
                         className="overflow-hidden"
                       >
-                        <div className="border-t border-border px-4 py-3">
+                        <div className="border-t border-border px-4 py-3 space-y-2">
                           <div className="flex gap-3">
                             <Input
                               value={editName}
-                              onChange={(e) => setEditName(e.target.value)}
+                              onChange={(e) => {
+                                setEditName(e.target.value);
+                                if (editTouched) setEditTouched(false);
+                              }}
                               onKeyDown={(e) => {
                                 if (e.key === "Enter") handleEdit(c.id);
                                 if (e.key === "Escape") setEditId(null);
                               }}
+                              onBlur={() => setEditTouched(true)}
+                              aria-invalid={editTouched && !editName.trim()}
                               autoFocus
                               className="flex-1"
                             />
-                            <Button onClick={() => handleEdit(c.id)}>บันทึก</Button>
+                            <Button onClick={() => handleEdit(c.id)} disabled={!editName.trim()}>บันทึก</Button>
                             <Button
                               variant="outline"
                               onClick={() => setEditId(null)}
@@ -284,6 +304,9 @@ export function Categories() {
                               ยกเลิก
                             </Button>
                           </div>
+                          {editTouched && !editName.trim() && (
+                            <p className="text-xs text-destructive">กรุณากรอกชื่อหมวดหมู่</p>
+                          )}
                         </div>
                       </motion.div>
                     )}
