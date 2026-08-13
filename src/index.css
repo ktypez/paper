@@ -52,6 +52,16 @@
   }
 }
 
+/* Touch target utility: min 44×44px per Apple HIG / Material */
+@utility touch-target {
+  @apply inline-flex items-center justify-center;
+  min-height: 44px;
+  min-width: 44px;
+}
+@utility touch-target-full {
+  @apply touch-target w-full;
+}
+
 /*
  * Cold Document Archive
  * A cool, precise document-archive palette. One accent (cobalt) used
