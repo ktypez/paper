@@ -34,7 +34,7 @@ export function BottomNav() {
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
       >
-        <div className="flex h-16 items-center justify-around px-2">
+        <div className="flex h-14 items-center justify-around px-2">
           {navItems.map((item, index) => {
             const isCenter = index === 2;
             const isActive =
@@ -51,7 +51,7 @@ export function BottomNav() {
                 {isCenter ? (
                   <TouchArea asChild>
                     <motion.div
-                      className="relative -top-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1c1c1c] text-[#fcfbf8] shadow-[inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.2)]"
+                      className="relative -top-6 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#1c1c1c] text-[#fcfbf8] ring-1 ring-border shadow-[inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.2)] dark:bg-[#e8e5de] dark:text-[#1a1916]"
                       whileTap={{ scale: 0.9 }}
                     >
                       <Upload className="h-6 w-6" />

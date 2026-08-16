@@ -155,12 +155,12 @@ export function ReceiptDetail() {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild>
+        <Button variant="ghost" size="icon" asChild className="hidden lg:inline-flex">
           <Link to="/receipts">
             <ArrowLeft className="h-4 w-4" />
           </Link>
         </Button>
-        <h2 className="text-xl font-semibold truncate">
+        <h2 className="truncate text-lg font-semibold">
           {stripExtension(receipt.filename)}
         </h2>
       </div>
@@ -170,7 +170,7 @@ export function ReceiptDetail() {
           <CardHeader>
             <CardTitle>Preview</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4 lg:p-6">
             <div className="flex items-center justify-center rounded-lg border border-border bg-background min-h-[300px]">
               {isImage ? (
                 <img

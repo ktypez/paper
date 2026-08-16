@@ -1,7 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link } from "react-router";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Search, Trash2, LayoutGrid, TableIcon, AlertCircle, FilterX } from "lucide-react";
+import { Plus, Search, LayoutGrid, TableIcon, AlertCircle, FilterX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -27,18 +27,19 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { TouchArea } from "@/components/ui/touch-area";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ReceiptRow } from "@/components/receipt-row";
+import { Card, CardContent } from "@/components/ui/card";
 import { useReceipts } from "@/hooks/use-receipts";
 import { useCategories } from "@/hooks/use-categories";
 import { useMediaQuery } from "@/lib/use-media-query";
 import { ArchiveStack } from "@/components/archive-stack";
 
 import { getFileUrl } from "@/lib/api";
-import { stripExtension } from "@/lib/utils";
+import { stripExtension, formatDateShort, formatSize, cn } from "@/lib/utils";
+import { categoryDot } from "@/lib/category-colors";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 20;
@@ -90,14 +91,19 @@ export function Receipts() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const paged = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
+  // Keep the current page in bounds when a delete or filter shrinks the list.
+  useEffect(() => {
+    if (page > totalPages) setPage(Math.max(1, totalPages));
+  }, [page, totalPages]);
+
   const handleDelete = async () => {
     if (!deleteId) return;
     setDeleting(true);
     try {
       await remove(deleteId);
-      toast.success("Document deleted");
+      toast.success("ลบเอกสารแล้ว");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete");
+      toast.error(e instanceof Error ? e.message : "ลบไม่สำเร็จ");
     } finally {
       setDeleting(false);
       setDeleteId(null);
@@ -125,40 +131,42 @@ export function Receipts() {
         <AlertCircle className="h-10 w-10 text-destructive" />
         <p className="text-destructive">{error}</p>
         <Button variant="outline" onClick={reload}>
-          Retry
+          ลองใหม่
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="font-display text-lg">All Documents</CardTitle>
-          <Button asChild>
-            <Link to="/upload">
-              <Plus className="mr-1 h-4 w-4" /> Upload
-            </Link>
-          </Button>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row">
+        <CardContent className="pt-3">
+          {/* Compact filter bar */}
+          <div className="mb-3 flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Search by filename or notes..."
+                placeholder="ค้นหาเอกสาร..."
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-9"
+                className="h-11 pl-9"
               />
             </div>
+            <Button asChild className="h-11 shrink-0">
+              <Link to="/upload">
+                <Plus className="mr-1 h-4 w-4" /> <span className="hidden sm:inline">อัปโหลด</span>
+                <span className="sm:hidden">อัปโหลด</span>
+              </Link>
+            </Button>
+          </div>
+
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
             <Select value={categoryFilter} onValueChange={handleCategoryChange}>
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="All categories" />
+              <SelectTrigger className="h-11 w-full sm:w-40">
+                <SelectValue placeholder="หมวดหมู่ทั้งหมด" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="all">หมวดหมู่ทั้งหมด</SelectItem>
                 {categories.map((c) => (
                   <SelectItem key={c.id} value={c.name}>
                     {c.name}
@@ -167,11 +175,11 @@ export function Receipts() {
               </SelectContent>
             </Select>
             <Select value={ownerFilter} onValueChange={handleOwnerChange}>
-              <SelectTrigger className="w-full sm:w-44">
-                <SelectValue placeholder="All owners" />
+              <SelectTrigger className="h-11 w-full sm:w-40">
+                <SelectValue placeholder="เจ้าของทั้งหมด" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All owners</SelectItem>
+                <SelectItem value="all">เจ้าของทั้งหมด</SelectItem>
                 {owners.map((o) => (
                   <SelectItem key={o} value={o}>
                     {o}
@@ -179,45 +187,57 @@ export function Receipts() {
                 ))}
               </SelectContent>
             </Select>
+            <div className="ml-auto flex items-center gap-1">
+              {isDesktop && (
+                <>
+                  <Button
+                    variant={view === "table" ? "default" : "ghost"}
+                    size="icon"
+                    className="h-11 w-11"
+                    onClick={() => setView("table")}
+                    aria-label="มุมมองตาราง"
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant={view === "card" ? "default" : "ghost"}
+                    size="icon"
+                    className="h-11 w-11"
+                    onClick={() => setView("card")}
+                    aria-label="มุมมองรายการ"
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {loading ? (
-            <div className="space-y-4">
-              {/* Table skeleton */}
-              <div className="rounded-xl border border-border overflow-hidden">
-                <div className="px-4 py-3 border-b border-border bg-muted/50">
-                  <div className="flex gap-4">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-4 w-20 hidden md:block" />
-                    <Skeleton className="h-4 w-16 hidden lg:block" />
-                    <Skeleton className="h-4 w-16" />
+            <div className="divide-y divide-border">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="flex items-center gap-3 py-2.5">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
+                  <div className="flex-1 space-y-1.5">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-24" />
                   </div>
+                  <Skeleton className="h-5 w-14 rounded-sm" />
                 </div>
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-border last:border-0">
-                    <Skeleton className="h-10 w-10 shrink-0 rounded-md" />
-                    <div className="flex-1 space-y-1.5">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-24" />
-                    </div>
-                    <Skeleton className="h-5 w-16 rounded-sm hidden md:block" />
-                    <Skeleton className="h-4 w-20 hidden lg:block" />
-                  </div>
-                ))}
-              </div>
+              ))}
             </div>
           ) : paged.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 py-16 text-center">
+            <div className="flex flex-col items-center gap-4 py-12 text-center">
               <ArchiveStack />
               <div className="space-y-1">
-                <h3 className="font-display text-lg text-foreground">
+                <h3 className="font-display text-base text-foreground">
                   {receipts.length === 0
                     ? "ยังไม่มีเอกสาร"
                     : "ไม่พบเอกสารที่ตรงกับเงื่อนไข"}
                 </h3>
                 <p className="text-sm text-muted-foreground">
                   {receipts.length === 0
-                    ? "อัปโหลดเอกสารแรกของคุณ โดยเริ่มจากปุ่ม Upload ด้านบน"
+                    ? "อัปโหลดเอกสารแรกของคุณ โดยเริ่มจากปุ่มอัปโหลดด้านบน"
                     : "ลองปรับคำค้นหรือตัวกรอง แล้วลองอีกครั้ง"}
                 </p>
               </div>
@@ -232,220 +252,145 @@ export function Receipts() {
                     setPage(1);
                   }}
                 >
-                  <FilterX className="mr-1 h-4 w-4" /> Clear filters
+                  <FilterX className="mr-1 h-4 w-4" /> ล้างตัวกรอง
                 </Button>
               )}
             </div>
           ) : (
             <>
-              <div className="mb-3 flex items-center justify-end gap-1">
-                {isDesktop && (
-                  <>
-                    <Button
-                      variant={view === "table" ? "default" : "ghost"}
-                      size="icon"
-                      onClick={() => setView("table")}
-                    >
-                      <TableIcon className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant={view === "card" ? "default" : "ghost"}
-                      size="icon"
-                      onClick={() => setView("card")}
-                    >
-                      <LayoutGrid className="h-4 w-4" />
-                    </Button>
-                  </>
-                )}
-              </div>
-
               <AnimatePresence mode="wait">
-              {effectiveView === "table" ? (
-                <motion.div
-                  key="table"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.15 }}
-                  className="overflow-x-auto rounded-md border"
-                >
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>File</TableHead>
-                        <TableHead className="min-w-[200px]">Filename</TableHead>
-                        <TableHead className="min-w-[140px]">Category</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {paged.map((r) => (
-                        <TableRow key={r.id}>
-                          <TableCell>
-                            <Link to={`/receipts/${r.id}`}>
-                              <TouchArea className="overflow-hidden rounded-md border border-border bg-background hover:ring-2 hover:ring-ring">
-                                {r.content_type.startsWith("image/") ? (
-                                  <img
-                                    src={getFileUrl(r.id)}
-                                    alt=""
-                                    loading="lazy"
-                                    decoding="async"
-                                    className="h-full w-full object-cover"
-                                  />
-                                ) : (
-                                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
-                                )}
-                              </TouchArea>
-                            </Link>
-                          </TableCell>
-                          <TableCell className="font-medium">
-                            <Link
-                              to={`/receipts/${r.id}`}
-                              className="hover:underline"
-                            >
-                              {stripExtension(r.filename)}
-                            </Link>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              <Badge variant="secondary">{r.category}</Badge>
-                              {r.owner && (
-                                <Badge variant="outline" className="text-muted-foreground">
-                                  {r.owner}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
+                {effectiveView === "table" ? (
+                  <motion.div
+                    key="table"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.15 }}
+                    className="overflow-x-auto rounded-md border"
+                  >
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">File</TableHead>
+                          <TableHead className="min-w-[200px] text-xs">Filename</TableHead>
+                          <TableHead className="min-w-[140px] text-xs">Category</TableHead>
+                          <TableHead className="min-w-[110px] text-xs">Date</TableHead>
+                          <TableHead className="text-xs">Size</TableHead>
                         </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paged.map((r) => (
+                          <TableRow key={r.id}>
+                            <TableCell>
+                              <Link to={`/receipts/${r.id}`}>
+                                <TouchArea className="overflow-hidden rounded-md border border-border bg-background hover:ring-2 hover:ring-ring">
+                                  {r.content_type.startsWith("image/") ? (
+                                    <img
+                                      src={getFileUrl(r.id)}
+                                      alt=""
+                                      loading="lazy"
+                                      decoding="async"
+                                      className="h-full w-full object-cover"
+                                    />
+                                  ) : (
+                                    <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                                  )}
+                                </TouchArea>
+                              </Link>
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              <Link to={`/receipts/${r.id}`} className="hover:underline">
+                                {stripExtension(r.filename)}
+                              </Link>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className={cn("h-2 w-2 rounded-full", categoryDot(r.category))} />
+                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                  {r.category}
+                                </Badge>
+                                {r.owner && (
+                                  <Badge variant="outline" className="text-[11px] text-muted-foreground">
+                                    {r.owner}
+                                  </Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                              {formatDateShort(r.uploaded_at)}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                              {formatSize(r.size)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="grid"
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.15 }}
+                  >
+                    <div>
+                      {paged.map((r) => (
+                        <ReceiptRow key={r.id} r={r} onDelete={setDeleteId} />
                       ))}
-                    </TableBody>
-                  </Table>
-                </motion.div>
-              ) : (
-                <motion.div
-                  key="grid"
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -8 }}
-                  transition={{ duration: 0.15 }}
-                  className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
-                >
-                  {paged.map((r) => (
-                    <div
-                      key={r.id}
-                      className="group relative overflow-hidden rounded-lg border border-border bg-card"
-                    >
-                      <Link to={`/receipts/${r.id}`}>
-                        <div className="flex aspect-[4/3] items-center justify-center bg-background">
-                          {r.content_type.startsWith("image/") ? (
-                            <img
-                              src={getFileUrl(r.id)}
-                              alt=""
-                              loading="lazy"
-                              decoding="async"
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <AlertCircle className="h-8 w-8 text-muted-foreground" />
-                          )}
-                        </div>
-                      </Link>
-                      <div className="p-2">
-                        <Link
-                          to={`/receipts/${r.id}`}
-                          className="block truncate text-sm font-medium hover:underline"
-                        >
-                          {stripExtension(r.filename)}
-                        </Link>
-                        <div className="mt-1 flex items-center gap-1">
-                          <Badge variant="secondary" className="text-[10px]">
-                            {r.category}
-                          </Badge>
-                          {r.owner && (
-                            <Badge
-                              variant="outline"
-                              className="text-[10px] text-muted-foreground"
-                            >
-                              {r.owner}
-                            </Badge>
-                          )}
-                          <Dialog
-                            open={deleteId === r.id}
-                            onOpenChange={(open) =>
-                              setDeleteId(open ? r.id : null)
-                            }
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="ml-auto text-destructive/60 opacity-0 hover:text-destructive group-hover:opacity-100"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Delete document</DialogTitle>
-                                <DialogDescription>
-                                  Are you sure you want to delete{" "}
-                                  <strong>{r.filename}</strong>? This action
-                                  cannot be undone.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <Button
-                                  variant="outline"
-                                  onClick={() => setDeleteId(null)}
-                                >
-                                  Cancel
-                                </Button>
-                                <Button
-                                  variant="destructive"
-                                  onClick={handleDelete}
-                                  disabled={deleting}
-                                >
-                                  {deleting ? "Deleting..." : "Delete"}
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-                      </div>
                     </div>
-                  ))}
-                </motion.div>
-              )}
+                  </motion.div>
+                )}
               </AnimatePresence>
 
               <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
-                <span>
-                  Showing {(page - 1) * PAGE_SIZE + 1}-
-                  {Math.min(page * PAGE_SIZE, filtered.length)} of{" "}
-                  {filtered.length}
+                <span className="tabular-nums">
+                  {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)} / {filtered.length}
                 </span>
                 <div className="flex gap-1">
-                <Button
-                  variant="outline"
-                  size="default"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="default"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    disabled={page <= 1}
+                    onClick={() => setPage((p) => p - 1)}
+                  >
+                    ก่อนหน้า
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="default"
+                    disabled={page >= totalPages}
+                    onClick={() => setPage((p) => p + 1)}
+                  >
+                    ถัดไป
+                  </Button>
                 </div>
               </div>
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>ลบเอกสาร</DialogTitle>
+            <DialogDescription>
+              ต้องการลบเอกสารนี้หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteId(null)}>
+              ยกเลิก
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
+              {deleting ? "กำลังลบ..." : "ลบ"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

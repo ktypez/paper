@@ -165,7 +165,7 @@ export function Categories() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-3">
       {/* Header + Add form */}
       <Card>
         <CardHeader>
@@ -205,7 +205,7 @@ export function Categories() {
 
       {/* Category list */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="p-3 pt-2">
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3, 4].map((i) => (
@@ -236,7 +236,7 @@ export function Categories() {
             </div>
           ) : isDesktop ? (
             /* Desktop: Drag-to-reorder list */
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {categories.map((c, i) => {
                 const count = receiptCounts[c.name] || 0;
                 const pct = Math.round((count / maxCount) * 100);
@@ -256,7 +256,7 @@ export function Categories() {
                       // Handled by handleReorder below
                     }}
                     whileDrag={{ scale: 1.02, zIndex: 50 }}
-                    className={`group relative flex items-center gap-4 rounded-xl border-l-4 bg-gradient-to-r p-4 transition-all ${getCatColor(i)} ${
+                    className={`group relative flex items-center gap-4 rounded-xl border-l-4 bg-gradient-to-r p-3 transition-all ${getCatColor(i)} ${
                       dragId === c.id ? "opacity-50" : ""
                     }`}
                   >
@@ -266,7 +266,7 @@ export function Categories() {
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex-1 min-w-0 space-y-1">
                       {editId === c.id ? (
                         <div className="flex items-center gap-2">
                           <Input
@@ -361,7 +361,7 @@ export function Categories() {
               axis="y"
               values={categories}
               onReorder={handleReorder}
-              className="space-y-2"
+              className="space-y-1.5"
             >
               {categories.map((c, i) => {
                 const count = receiptCounts[c.name] || 0;
@@ -371,7 +371,7 @@ export function Categories() {
                   <Reorder.Item
                     key={c.id}
                     value={c}
-                    className={`rounded-xl border-l-4 bg-gradient-to-r p-4 ${getCatColor(i)}`}
+                    className={`rounded-xl border-l-4 bg-gradient-to-r p-3 ${getCatColor(i)}`}
                     dragListener={true}
                   >
                     <div className="flex items-center gap-3">
@@ -381,7 +381,7 @@ export function Categories() {
                       </div>
 
                       {/* Content */}
-                      <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex-1 min-w-0 space-y-1">
                         {editId === c.id ? (
                           <div className="space-y-2">
                             <Input
