@@ -66,20 +66,24 @@ export function BottomNav() {
                       <item.icon
                         className={cn(
                           "h-5 w-5 transition-colors",
-                          isActive ? "text-primary" : "text-muted-foreground"
+                          isActive
+                            ? "text-primary dark:text-foreground"
+                            : "text-muted-foreground"
                         )}
                       />
                       <span
                         className={cn(
                           "text-[10px] font-medium transition-colors",
-                          isActive ? "text-primary" : "text-muted-foreground"
+                          isActive
+                            ? "text-primary dark:text-foreground"
+                            : "text-muted-foreground"
                         )}
                       >
                         {item.label}
                       </span>
                       <motion.div
                         layoutId="bottom-nav-indicator"
-                        className="absolute -bottom-1 h-0.5 w-4 rounded-full bg-primary"
+                        className="absolute -bottom-1 h-0.5 w-4 rounded-full bg-primary dark:bg-foreground"
                         transition={{ type: "spring", stiffness: 500, damping: 35 }}
                         style={{ opacity: isActive ? 1 : 0 }}
                       />
