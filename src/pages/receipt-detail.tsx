@@ -14,13 +14,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -33,9 +26,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { CategorySelect } from "@/components/category-select";
 import { useReceipts } from "@/hooks/use-receipts";
-import { useCategories } from "@/hooks/use-categories";
-import { formatDate, formatSize, stripExtension } from "@/lib/utils";
+import { formatDate, formatSize, stripExtension, cn } from "@/lib/utils";
+import { categoryText } from "@/lib/category-colors";
 import { getFileUrl, updateReceipt } from "@/lib/api";
 import { toast } from "sonner";
 
@@ -43,7 +37,6 @@ export function ReceiptDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { receipts, loading, remove, reload } = useReceipts();
-  const { categories } = useCategories();
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -231,20 +224,11 @@ export function ReceiptDetail() {
             <div>
               <p className="text-xs text-muted-foreground">Category</p>
               {editMode ? (
-                <Select value={editCategory} onValueChange={setEditCategory}>
-                  <SelectTrigger className="mt-1">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div className="mt-1">
+                  <CategorySelect value={editCategory} onChange={setEditCategory} />
+                </div>
               ) : (
-                <Badge variant="secondary" className="mt-1">
+                <Badge variant="outline" className={cn("mt-1 font-semibold", categoryText(receipt.category))}>
                   {receipt.category}
                 </Badge>
               )}

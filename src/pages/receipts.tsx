@@ -39,7 +39,7 @@ import { PaperPlane } from "@/components/paper-plane";
 
 import { getFileUrl } from "@/lib/api";
 import { stripExtension, formatDateShort, formatSize, cn } from "@/lib/utils";
-import { categoryDot } from "@/lib/category-colors";
+import { categoryDot, categoryText } from "@/lib/category-colors";
 import { toast } from "sonner";
 
 const PAGE_SIZE = 20;
@@ -306,7 +306,7 @@ export function Receipts() {
                             <TableCell>
                               <div className="flex flex-wrap items-center gap-1.5">
                                 <span className={cn("h-2 w-2 rounded-full", categoryDot(r.category))} />
-                                <Badge variant="secondary" className="text-[11px] font-medium">
+                                <Badge variant="outline" className={cn("border-border bg-transparent text-[11px] font-semibold", categoryText(r.category))}>
                                   {r.category}
                                 </Badge>
                                 {r.owner && (

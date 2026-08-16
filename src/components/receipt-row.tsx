@@ -12,7 +12,7 @@ import {
 import { TouchArea } from "@/components/ui/touch-area";
 import { getFileUrl } from "@/lib/api";
 import { formatDateShort, formatSize, stripExtension, cn } from "@/lib/utils";
-import { categoryDot } from "@/lib/category-colors";
+import { categoryDot, categoryText } from "@/lib/category-colors";
 import type { Receipt } from "@/types";
 
 interface ReceiptRowProps {
@@ -65,7 +65,7 @@ export function ReceiptRow({ r, onDelete, className }: ReceiptRowProps) {
             className={cn("h-2 w-2 shrink-0 rounded-full", categoryDot(r.category))}
             title={r.category}
           />
-          <Badge variant="secondary" className="text-[10px] font-medium">
+          <Badge variant="outline" className={cn("border-border bg-transparent text-[10px] font-semibold", categoryText(r.category))}>
             {r.category}
           </Badge>
         </span>

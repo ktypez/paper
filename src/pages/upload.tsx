@@ -15,17 +15,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { useCategories } from "@/hooks/use-categories";
+import { CategorySelect } from "@/components/category-select";
 import { uploadReceiptWithProgress } from "@/lib/api";
 import { toast } from "sonner";
 import { formatSize } from "@/lib/utils";
@@ -33,7 +26,6 @@ import { validateFile, compressImage } from "@/lib/upload-utils";
 
 export function Upload() {
   const navigate = useNavigate();
-  const { categories } = useCategories();
   const [file, setFile] = useState<File | null>(null);
   const [originalSize, setOriginalSize] = useState(0);
   const [compressing, setCompressing] = useState(false);
@@ -296,26 +288,15 @@ export function Upload() {
                   <Label htmlFor="category">Category</Label>
                   <span className="text-xs text-destructive">*</span>
                 </div>
-                <Select
+                <CategorySelect
                   value={category}
-                  onValueChange={onCategoryChange}
+                  onChange={onCategoryChange}
                   disabled={uploading}
-                >
-                  <SelectTrigger id="category" aria-invalid={!!fieldErrors.category}>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories.map((c) => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
                 {touched.category && fieldErrors.category ? (
                   <p className="text-xs text-destructive">{fieldErrors.category}</p>
                 ) : (
-                  <p className="text-xs text-muted-foreground">Required — เลือกหมวดหมู่ที่ตรงกับเอกสาร</p>
+                  <p className="text-xs text-muted-foreground">Required — เลือกหรือสร้างหมวดหมู่ที่ตรงกับเอกสาร</p>
                 )}
               </div>
 

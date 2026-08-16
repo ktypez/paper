@@ -24,7 +24,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
-  --font-sans: "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Mali", "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Mali", "Source Serif 4", "Noto Sans Thai Variable", Georgia, serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -114,7 +114,7 @@
   --brand-grad-to: #c2335a;
   --font-display: "Mali", "Source Serif 4", "Noto Sans Thai Variable", Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", monospace;
-  --font-sans: "DM Sans", "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-sans: "Mali", "DM Sans", "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-serif: "Source Serif 4", "Noto Serif Thai", Georgia, serif;
   --info: #3a5f8a;
   --shadow: none;

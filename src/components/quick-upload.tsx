@@ -3,15 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Upload as UploadIcon, FileText, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TouchArea } from "@/components/ui/touch-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { useCategories } from "@/hooks/use-categories";
+import { CategorySelect } from "@/components/category-select";
 import { uploadReceiptWithProgress } from "@/lib/api";
 import { toast } from "sonner";
 import { formatSize } from "@/lib/utils";
@@ -23,7 +16,6 @@ interface QuickUploadProps {
 }
 
 export function QuickUpload({ onUploaded }: QuickUploadProps) {
-  const { categories } = useCategories();
   const [file, setFile] = useState<File | null>(null);
   const [originalSize, setOriginalSize] = useState(0);
   const [compressing, setCompressing] = useState(false);
@@ -181,23 +173,12 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
             </p>
           )}
 
-          <div className="flex items-center gap-2">
-            <Select value={category} onValueChange={setCategory} disabled={uploading}>
-              <SelectTrigger className="flex-1">
-                <SelectValue placeholder="Select category" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.name}>
-                    {c.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          <div className="space-y-2">
+            <CategorySelect value={category} onChange={setCategory} disabled={uploading} placeholder="เลือกหมวดหมู่" />
             <Button
               onClick={handleUpload}
               disabled={!category || uploading}
-              className="shrink-0"
+              className="w-full"
             >
               {uploading ? (
                 <>{uploadProgress}% · Uploading...</>
