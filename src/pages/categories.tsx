@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion, Reorder } from "framer-motion";
+import { motion, Reorder, useReducedMotion } from "framer-motion";
 import {
   Plus,
   Pencil,
@@ -62,6 +62,7 @@ export function Categories() {
   } = useCategories();
   const { receipts } = useReceipts();
   const isDesktop = useMediaQuery("(min-width: 768px)");
+  const reduce = useReducedMotion();
 
   // Add state
   const [newName, setNewName] = useState("");
@@ -256,6 +257,7 @@ export function Categories() {
                       // Handled by handleReorder below
                     }}
                     whileDrag={{ scale: 1.02, zIndex: 50 }}
+                    whileHover={reduce ? undefined : { rotate: -0.75, y: -2 }}
                     className={`group relative flex items-center gap-4 rounded-xl border-l-4 bg-gradient-to-r p-3 transition-all ${getCatColor(i)} ${
                       dragId === c.id ? "opacity-50" : ""
                     }`}

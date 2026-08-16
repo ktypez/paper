@@ -25,7 +25,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --font-sans: "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
-  --font-display: "Source Serif 4", Georgia, serif;
+  --font-display: "Mali", "Source Serif 4", "Noto Sans Thai Variable", Georgia, serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -103,7 +103,16 @@
   --sidebar-ring: rgba(59,130,246,0.5);
   --accent-deep: #1c1c1c;
   --border-width: 1px;
-  --font-display: "Source Serif 4", Georgia, serif;
+  --accent-warm: #e8622d;
+  --accent-coral: #e85d6a;
+  --accent-lilac: #9a7ce0;
+  --accent-sun: #e8a93a;
+  --accent-ink-on-light: #a63c17;
+  --accent-ink-on-dark: #ffb08f;
+  --accent-ink: var(--accent-ink-on-light);
+  --brand-grad-from: #d9531f;
+  --brand-grad-to: #c2335a;
+  --font-display: "Mali", "Source Serif 4", "Noto Sans Thai Variable", Georgia, serif;
   --font-mono: ui-monospace, "SF Mono", monospace;
   --font-sans: "DM Sans", "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-serif: "Source Serif 4", "Noto Serif Thai", Georgia, serif;
@@ -149,6 +158,15 @@
   --sidebar-border: #2e2c28;
   --sidebar-ring: rgba(59,130,246,0.5);
   --accent-deep: #1c1c1c;
+  --accent-warm: #ff8a4c;
+  --accent-coral: #ff7a88;
+  --accent-lilac: #c3a6ff;
+  --accent-sun: #ffc35c;
+  --accent-ink-on-light: #a63c17;
+  --accent-ink-on-dark: #ffb08f;
+  --accent-ink: var(--accent-ink-on-dark);
+  --brand-grad-from: #ff8a4c;
+  --brand-grad-to: #ff7a88;
   --shadow: none;
   --shadow-lg: none;
   --shadow-md: none;
@@ -209,6 +227,13 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --border-width: var(--border-width);
   --color-accent-deep: var(--accent-deep);
+  --color-accent-warm: var(--accent-warm);
+  --color-accent-coral: var(--accent-coral);
+  --color-accent-lilac: var(--accent-lilac);
+  --color-accent-sun: var(--accent-sun);
+  --color-accent-ink: var(--accent-ink);
+  --color-brand-from: var(--brand-grad-from);
+  --color-brand-to: var(--brand-grad-to);
 }
 
 /* Honor reduced motion system preference globally. */

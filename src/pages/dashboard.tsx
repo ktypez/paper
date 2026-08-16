@@ -17,7 +17,7 @@ import { formatSize } from "@/lib/utils";
 import { QuickUpload } from "@/components/quick-upload";
 import { StatTile } from "@/components/stat-tile";
 import { ReceiptRow } from "@/components/receipt-row";
-import { ArchiveStack } from "@/components/archive-stack";
+import { PaperPlane } from "@/components/paper-plane";
 import { toast } from "sonner";
 import type { Receipt } from "@/types";
 
@@ -43,7 +43,7 @@ function useDashboardStats(receipts: Receipt[]) {
 function EmptyArchive() {
   return (
     <div className="flex flex-col items-center gap-3 py-10 text-center">
-      <ArchiveStack />
+      <PaperPlane />
       <div className="space-y-1">
         <h3 className="font-display text-base text-foreground">ยังไม่มีเอกสาร</h3>
         <p className="text-sm text-muted-foreground">
@@ -113,6 +113,20 @@ export function Dashboard() {
 
   return (
     <div className="space-y-3">
+      {/* Fun greeting */}
+      <div>
+        <h2 className="font-display text-xl font-semibold tracking-tight text-foreground">
+          ยินดีต้อนรับกลับ, จัดเก็บ
+          <span className="bg-gradient-to-r from-brand-from to-brand-to bg-clip-text text-transparent">
+            {" "}เอกสารของคุณ
+          </span>
+          {" "}ให้เป็นระเบียบ
+        </h2>
+        <p className="text-sm text-muted-foreground">
+          เรียกดูรายงานและเอกสารล่าสุดของคุณได้อย่างรวดเร็ว
+        </p>
+      </div>
+
       {/* Compact stat strip */}
       <div className="grid grid-cols-3 gap-2 lg:grid-cols-4">
         <StatTile

@@ -6,6 +6,9 @@ import "@fontsource/source-serif-4/400.css";
 import "@fontsource/source-serif-4/500.css";
 import "@fontsource/source-serif-4/600.css";
 import "@fontsource/source-serif-4/700.css";
+import "@fontsource/mali/500.css";
+import "@fontsource/mali/600.css";
+import "@fontsource/mali/700.css";
 import App from "./App";
 import "./index.css";
 

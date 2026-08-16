@@ -1,4 +1,5 @@
 import { Link } from "react-router";
+import { motion, useReducedMotion } from "framer-motion";
 import { MoreHorizontal, ReceiptText, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,9 +23,12 @@ interface ReceiptRowProps {
 
 export function ReceiptRow({ r, onDelete, className }: ReceiptRowProps) {
   const isImage = r.content_type.startsWith("image/");
+  const reduce = useReducedMotion();
 
   return (
-    <div
+    <motion.div
+      whileTap={reduce ? undefined : { scale: 0.985 }}
+      transition={{ type: "spring", stiffness: 500, damping: 30 }}
       className={cn(
         "group flex items-center gap-3 border-b border-border py-2.5 last:border-0",
         className
@@ -87,6 +91,6 @@ export function ReceiptRow({ r, onDelete, className }: ReceiptRowProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-    </div>
+    </motion.div>
   );
 }

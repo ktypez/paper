@@ -35,7 +35,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useReceipts } from "@/hooks/use-receipts";
 import { useCategories } from "@/hooks/use-categories";
 import { useMediaQuery } from "@/lib/use-media-query";
-import { ArchiveStack } from "@/components/archive-stack";
+import { PaperPlane } from "@/components/paper-plane";
 
 import { getFileUrl } from "@/lib/api";
 import { stripExtension, formatDateShort, formatSize, cn } from "@/lib/utils";
@@ -228,7 +228,7 @@ export function Receipts() {
             </div>
           ) : paged.length === 0 ? (
             <div className="flex flex-col items-center gap-4 py-12 text-center">
-              <ArchiveStack />
+              <PaperPlane />
               <div className="space-y-1">
                 <h3 className="font-display text-base text-foreground">
                   {receipts.length === 0

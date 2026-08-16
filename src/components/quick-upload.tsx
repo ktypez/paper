@@ -16,6 +16,7 @@ import { uploadReceiptWithProgress } from "@/lib/api";
 import { toast } from "sonner";
 import { formatSize } from "@/lib/utils";
 import { validateFile, compressImage } from "@/lib/upload-utils";
+import { SparkleBurst } from "@/components/sparkle-burst";
 
 interface QuickUploadProps {
   onUploaded?: () => void;
@@ -31,7 +32,9 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [spark, setSpark] = useState<{ x: number; y: number } | null>(null);
 
   const clear = () => {
     setFile(null);
@@ -78,6 +81,10 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
     try {
       await uploadReceiptWithProgress(file, category, setUploadProgress);
       toast.success("Upload successful");
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (rect) {
+        setSpark({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      }
       clear();
       onUploaded?.();
     } catch (e) {
@@ -88,7 +95,7 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="space-y-3">
       {!file && !compressing ? (
         <TouchArea asChild>
           <motion.div
@@ -215,6 +222,10 @@ export function QuickUpload({ onUploaded }: QuickUploadProps) {
             )}
           </AnimatePresence>
         </motion.div>
+      )}
+
+      {spark && (
+        <SparkleBurst x={spark.x} y={spark.y} done={() => setSpark(null)} />
       )}
     </div>
   );

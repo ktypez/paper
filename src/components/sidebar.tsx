@@ -2,7 +2,6 @@ import { NavLink } from "react-router";
 import { motion } from "framer-motion";
 import { FileText, Upload, Tags, Settings, LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { TouchArea } from "@/components/ui/touch-area";
 
 const navItems = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
@@ -25,9 +24,14 @@ export function Sidebar({ open }: SidebarProps) {
       className="fixed top-0 left-0 z-40 flex h-dvh w-56 flex-col bg-sidebar border-r border-sidebar-border"
     >
       <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-        <TouchArea className="h-8 w-8 shrink-0 rounded-lg border border-border bg-background">
-          <FileText className="h-4 w-4 text-primary" />
-        </TouchArea>
+        <motion.div
+          initial={{ rotate: -12, scale: 0.5, opacity: 0 }}
+          animate={{ rotate: 0, scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 260, damping: 12 }}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-brand-from to-brand-to text-white"
+        >
+          <FileText className="h-4 w-4" />
+        </motion.div>
         <span className="font-display text-xl font-semibold tracking-tight text-sidebar-foreground">
           Paper
         </span>
