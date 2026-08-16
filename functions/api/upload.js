@@ -4,7 +4,7 @@ const ALLOWED_TYPES = [
   "image/webp",
   "application/pdf",
 ];
-const MAX_SIZE = 3 * 1024 * 1024;
+const MAX_SIZE = 10 * 1024 * 1024;
 
 export async function onRequestPost(context) {
   const { receipts_db: DB, BUCKET } = context.env;

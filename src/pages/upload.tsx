@@ -6,7 +6,6 @@ import {
   FileText,
   X,
   AlertCircle,
-  StickyNote,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {

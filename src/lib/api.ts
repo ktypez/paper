@@ -46,7 +46,7 @@ export async function renameReceipt(
 
 export async function updateReceipt(
   id: string,
-  data: { filename?: string; category?: string; owner?: string; notes?: string }
+  data: { filename?: string; category?: string; owner?: string | null; notes?: string }
 ): Promise<Receipt> {
   return request<Receipt>(`/receipts/${encodeURIComponent(id)}`, {
     method: "PUT",

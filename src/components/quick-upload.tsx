@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type DragEvent } from "react";
+import { useState, useRef, type DragEvent } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload as UploadIcon, FileText, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";

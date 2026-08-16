@@ -16,7 +16,7 @@ const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
           {
             "bg-background border-border text-foreground":
               variant === "default",
-            "bg-background border-border text-foreground":
+            "bg-muted text-secondary-foreground border-border":
               variant === "secondary",
             "bg-destructive text-destructive-foreground border-destructive":
               variant === "destructive",

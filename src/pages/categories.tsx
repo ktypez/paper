@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion, AnimatePresence, Reorder } from "framer-motion";
+import { motion, Reorder } from "framer-motion";
 import {
   Plus,
   Pencil,
@@ -8,7 +8,6 @@ import {
   MoreHorizontal,
   GripVertical,
   FolderOpen,
-  FileText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +19,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -29,7 +27,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { TouchArea } from "@/components/ui/touch-area";
 import { useCategories } from "@/hooks/use-categories";
 import { useReceipts } from "@/hooks/use-receipts";

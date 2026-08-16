@@ -287,6 +287,8 @@ export function Receipts() {
                                   <img
                                     src={getFileUrl(r.id)}
                                     alt=""
+                                    loading="lazy"
+                                    decoding="async"
                                     className="h-full w-full object-cover"
                                   />
                                 ) : (
@@ -338,6 +340,8 @@ export function Receipts() {
                             <img
                               src={getFileUrl(r.id)}
                               alt=""
+                              loading="lazy"
+                              decoding="async"
                               className="h-full w-full object-cover"
                             />
                           ) : (

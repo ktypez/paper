@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Link } from "react-router";
-import { Upload, ReceiptText, ArrowRight } from "lucide-react";
+import { ReceiptText, ArrowRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,8 @@ function RecentReceipt({ r }: { r: Receipt }) {
           <img
             src={getFileUrl(r.id)}
             alt=""
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover"
           />
         ) : (

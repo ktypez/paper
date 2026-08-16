@@ -7,7 +7,9 @@ export interface TouchAreaProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export function TouchArea({ className, asChild = false, ...props }: TouchAreaProps) {
   if (asChild) {
-    const child = React.Children.only(props.children) as React.ReactElement;
+    const child = React.Children.only(
+      props.children
+    ) as React.ReactElement<React.HTMLAttributes<HTMLElement>>;
     return React.cloneElement(child, {
       className: cn(child.props.className, "touch-target rounded-md", className),
       ...props,

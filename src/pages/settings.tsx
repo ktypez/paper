@@ -1,7 +1,6 @@
 import {
   Sun,
   Moon,
-  Monitor,
   FileText,
   HardDrive,
   LogOut,
