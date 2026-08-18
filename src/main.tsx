@@ -12,6 +12,11 @@ import "@fontsource/mali/700.css";
 import App from "./App";
 import "./index.css";
 
+// Shared UI foundation: canonical tokens + paper bridge.
+// Loaded BEFORE index.css so paper's own :root overrides keep the paper
+// identity intact (Cold Document Archive).
+import "./foundation.css";
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

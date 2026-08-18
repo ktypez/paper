@@ -1,0 +1,9 @@
+/* ============================================================================
+   foundation.css — shared UI foundation for paper.mcky.space
+   ----------------------------------------------------------------------------
+   Imports canonical tokens + paper bridge from ui-foundation.
+   Imported BEFORE index.css so paper's own :root overrides (in index.css)
+   win the cascade — paper identity stays intact.
+   ========================================================================== */
+@import 'ui-foundation/dist/canonical.css';
+@import 'ui-foundation/dist/bridges/paper.css';
