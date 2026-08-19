@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { BrowserRouter, Routes, Route } from "react-router";
 import { ClerkProvider, useAuth } from "@clerk/clerk-react";
+import { thTH } from "@clerk/localizations";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { Layout } from "@/components/layout";
 import { PaperPlane } from "@/components/paper-plane";
@@ -80,7 +81,7 @@ export default function App() {
 
   return (
     <ThemeProvider>
-      <ClerkProvider publishableKey={publishableKey}>
+      <ClerkProvider publishableKey={publishableKey} localization={thTH}>
         <BrowserRouter>
           <Root />
         </BrowserRouter>
