@@ -1,12 +1,9 @@
 import { useEffect } from "react";
-import { useNavigate, useLocation } from "react-router";
+import { useNavigate } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
-import { useReducedMotion } from "framer-motion";
 
 export function Login() {
-  const reduce = useReducedMotion();
   const navigate = useNavigate();
-  const location = useLocation();
   const { isLoaded, isSignedIn } = useAuth();
 
   const target = window.location.pathname + window.location.search || "/";

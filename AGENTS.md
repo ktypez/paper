@@ -59,10 +59,10 @@ Use `recall` to retrieve context, `remember` to save new info.
 - **`owner` field** = free-text "Owner / Folder" label on a receipt (set at upload, edited in detail, filtered in receipts list), NOT tied to the signed-in user.
 
 ## Design System
-- Source of truth: **`design-system/paper/MASTER.md`** — "Lovable Warm" theme.
-- Tokens live in `src/index.css` (`:root` light + `.dark`). Rules: never `#fff` bg, never `#000` text, grays derived from `#1c1c1c` opacities, `--shadow: none` (border-over-shadow), 44px touch targets.
-- Fonts: display = **Source Serif 4**, sans = DM Sans / Geist Variable / Noto Sans Thai. Loaded via fonts.bunny.net in `index.html` + `@fontsource` packages.
-- `Design.md` (Expo) and `design-revamp-spec.md` (Lovable) are historical references; the **implemented** palette is warm cream (`#f7f4ed`). The "Cold Document Archive" comment block atop `:root` in index.css is stale — ignore it, the actual tokens are warm.
+- **Implemented theme: MONO** (commit `59e385a`) — 100% monochrome (black on white / white on black), 0px radius, sharp edges. Tokens live ONLY in `src/index.css` (`:root` light + `.dark`) — single source of truth.
+- Fonts: **Inter** (sans + display) + **JetBrains Mono**, loaded via `@fontsource` in `main.tsx`; Thai glyphs fall back to Noto Sans Thai Variable. No bunny.net / external font links.
+- `design-system/paper/MASTER.md` ("Lovable Warm", cream `#f7f4ed`), `Design.md` (Expo) and `design-revamp-spec.md` are **historical** — superseded by MONO. Their "never #fff/#000" rules no longer apply.
+- 44px touch targets (`touch-target` / `touch-target-full` utilities).
 - shadcn components under `src/components/ui/` (button, card, dialog, dropdown-menu, input, label, progress, select, separator, skeleton, table, tooltip, badge). There's also `claude-callout`, `claude-note`, `claude-effects.css`, `touch-area`.
 
 ## Naming / Style Conventions
@@ -85,6 +85,7 @@ Use `recall` to retrieve context, `remember` to save new info.
 10. **Optimistic category reorder** in `use-categories.ts` reverts by reloading on error — no manual rollback.
 11. **List images** (receipts grid/table, dashboard recent) use `loading="lazy"` — keep it on any new list thumbnails.
 12. **`radix-ui` umbrella vs granular imports**: `button.tsx` uses `import { Slot } from "radix-ui"`; everything else uses `@radix-ui/react-*`. Both work — pick one per file, don't mix in the same file.
+13. **`ui-foundation` was REMOVED (2026-09-05)** — it imported `canonical.css` (portal INK theme values) which, due to import order, silently overrode paper's own `:root` tokens and force-applied portal dark under OS dark mode (`:root:not([data-mode])` media query beats the `.dark` class). Tokens are now single-sourced in `src/index.css`. Do NOT reintroduce `ui-foundation` / `src/foundation.css` / `ui.mcky.space` CDN links here; portal/truck/data consume it separately and are unaffected.
 
 ## MCP Source Cite
 When answering using data from an MCP server, indicate the source in square brackets at the end:

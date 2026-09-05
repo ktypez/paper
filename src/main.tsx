@@ -2,20 +2,14 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource-variable/geist";
 import "@fontsource-variable/noto-sans-thai";
-import "@fontsource/source-serif-4/400.css";
-import "@fontsource/source-serif-4/500.css";
-import "@fontsource/source-serif-4/600.css";
-import "@fontsource/source-serif-4/700.css";
-import "@fontsource/mali/500.css";
-import "@fontsource/mali/600.css";
-import "@fontsource/mali/700.css";
+import "@fontsource/inter/400.css";
+import "@fontsource/inter/500.css";
+import "@fontsource/inter/600.css";
+import "@fontsource/inter/700.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 import App from "./App";
 import "./index.css";
-
-// Shared UI foundation: canonical tokens + paper bridge.
-// Loaded BEFORE index.css so paper's own :root overrides keep the paper
-// identity intact (Cold Document Archive).
-import "./foundation.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
