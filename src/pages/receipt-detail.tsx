@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import { ArrowLeft, FileText, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Maximize2, Pencil, Trash2 } from "lucide-react";
 import { isImage, origUrl } from "@/lib/api-v2";
+import { formatDate, formatSize } from "@/lib/format";
 import { useCategories, useDeleteReceipt, useReceipt, useUpdateReceipt } from "@/lib/query";
+import { Lightbox } from "@/components/lightbox";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,16 +24,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 
-function formatSize(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("th-TH");
-}
-
 export function ReceiptDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -42,6 +34,7 @@ export function ReceiptDetail() {
 
   const [editOpen, setEditOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [lightbox, setLightbox] = useState<string | null>(null);
   const [filename, setFilename] = useState("");
   const [category, setCategory] = useState("");
   const [owner, setOwner] = useState("");
@@ -110,14 +103,14 @@ export function ReceiptDetail() {
       <main className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4">
         {receipt.isLoading && (
           <div className="space-y-3">
-            <Skeleton className="aspect-square w-full rounded-none" />
-            <Skeleton className="h-5 w-2/3 rounded-none" />
-            <Skeleton className="h-5 w-1/3 rounded-none" />
+            <Skeleton className="aspect-square w-full rounded-xl" />
+            <Skeleton className="h-5 w-2/3 rounded-md" />
+            <Skeleton className="h-5 w-1/3 rounded-md" />
           </div>
         )}
 
         {receipt.isError && (
-          <div className="rounded-none border border-border bg-card px-4 py-6 text-center text-sm">
+          <div className="rounded-2xl border border-border bg-card px-4 py-6 text-center text-sm">
             <p className="text-muted-foreground">โหลดเอกสารไม่สำเร็จ อาจถูกลบไปแล้ว</p>
             <Link to="/lib" className="mt-3 inline-flex min-h-[44px] items-center underline">
               กลับไปคลังเอกสาร
@@ -129,15 +122,25 @@ export function ReceiptDetail() {
           <>
             <section
               aria-label="ไฟล์ต้นฉบับ"
-              className="rounded-none border border-border bg-card"
+              className="rounded-2xl border border-border bg-card"
             >
               {isImage(r) ? (
-                <img
-                  src={origUrl(r)}
-                  alt={r.filename}
-                  loading="lazy"
-                  className="w-full object-contain"
-                />
+                <button
+                  type="button"
+                  onClick={() => setLightbox(origUrl(r))}
+                  aria-label="เปิดรปูเต็มจอ"
+                  className="group relative block w-full"
+                >
+                  <img
+                    src={origUrl(r)}
+                    alt={r.filename}
+                    loading="lazy"
+                    className="w-full object-contain"
+                  />
+                  <span className="absolute right-3 top-3 inline-flex h-10 w-10 items-center justify-center rounded-full bg-black/50 text-white transition-colors group-active:bg-black/70">
+                    <Maximize2 className="h-4 w-4" />
+                  </span>
+                </button>
               ) : (
                 <div className="p-4">
                   <p className="mb-2 flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground">
@@ -147,35 +150,35 @@ export function ReceiptDetail() {
                   <iframe
                     src={origUrl(r)}
                     title={r.filename}
-                    className="h-[60vh] w-full rounded-none border border-border bg-background"
+                    className="h-[60vh] w-full rounded-xl border border-border bg-background"
                   />
                 </div>
               )}
             </section>
 
             <section aria-label="ข้อมูลเอกสาร" className="space-y-2 text-sm">
-              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4">
                 <span className="text-muted-foreground">ชื่อไฟล์</span>
                 <span className="truncate font-medium">{r.filename}</span>
               </div>
-              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4">
                 <span className="text-muted-foreground">หมวดหมู่</span>
                 <span className="font-medium">{r.category}</span>
               </div>
-              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4">
                 <span className="text-muted-foreground">เจ้าของ</span>
                 <span className="font-medium">{r.owner ?? "—"}</span>
               </div>
-              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4">
                 <span className="text-muted-foreground">วันที่อัปโหลด</span>
                 <span className="font-medium">{formatDate(r.uploaded_at)}</span>
               </div>
-              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4">
                 <span className="text-muted-foreground">ขนาด</span>
                 <span className="font-medium">{formatSize(r.size)}</span>
               </div>
               {r.notes && (
-                <div className="rounded-none border border-border bg-card px-4 py-3">
+                <div className="rounded-2xl border border-border bg-card px-4 py-3">
                   <p className="text-muted-foreground">โน้ต</p>
                   <p className="mt-1 whitespace-pre-wrap">{r.notes}</p>
                 </div>
@@ -187,26 +190,26 @@ export function ReceiptDetail() {
                 <Button
                   variant="outline"
                   onClick={() => setConfirmDelete(true)}
-                  className="min-h-[44px] w-full rounded-none"
+                  className="min-h-[44px] w-full rounded-xl"
                 >
                   <Trash2 className="h-4 w-4" />
                   ลบเอกสาร
                 </Button>
               ) : (
-                <div className="rounded-none border border-border bg-card p-4">
+                <div className="rounded-2xl border border-border bg-card p-4">
                   <p className="text-sm font-bold">ยืนยันการลบเอกสารนี้?</p>
                   <div className="mt-3 flex gap-2">
                     <Button
                       variant="outline"
                       onClick={() => setConfirmDelete(false)}
-                      className="min-h-[44px] flex-1 rounded-none"
+                      className="min-h-[44px] flex-1 rounded-xl"
                     >
                       ยกเลิก
                     </Button>
                     <Button
                       onClick={handleDelete}
                       disabled={del.isPending}
-                      className="min-h-[44px] flex-1 rounded-none"
+                      className="min-h-[44px] flex-1 rounded-xl"
                     >
                       {del.isPending ? "กำลังลบ…" : "ยืนยันลบ"}
                     </Button>
@@ -222,7 +225,7 @@ export function ReceiptDetail() {
       </main>
 
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
-        <DialogContent className="rounded-none">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>แก้ไขเอกสาร</DialogTitle>
           </DialogHeader>
@@ -233,13 +236,13 @@ export function ReceiptDetail() {
                 id="edit-filename"
                 value={filename}
                 onChange={(e) => setFilename(e.target.value)}
-                className="min-h-[44px] rounded-none"
+                className="min-h-[44px] rounded-xl"
               />
             </div>
             <div className="space-y-1">
               <Label htmlFor="edit-category">หมวดหมู่</Label>
               <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger id="edit-category" className="min-h-[44px] rounded-none">
+                <SelectTrigger id="edit-category" className="min-h-[44px] rounded-xl">
                   <SelectValue placeholder="เลือกหมวดหมู่" />
                 </SelectTrigger>
                 <SelectContent>
@@ -258,7 +261,7 @@ export function ReceiptDetail() {
                 value={owner}
                 onChange={(e) => setOwner(e.target.value)}
                 placeholder="เช่น บ้าน, บริษัท"
-                className="min-h-[44px] rounded-none"
+                className="min-h-[44px] rounded-xl"
               />
             </div>
             <div className="space-y-1">
@@ -268,7 +271,7 @@ export function ReceiptDetail() {
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="รายละเอียดเพิ่มเติม"
-                className="min-h-[44px] rounded-none"
+                className="min-h-[44px] rounded-xl"
               />
             </div>
             {update.isError && (
@@ -279,20 +282,24 @@ export function ReceiptDetail() {
             <Button
               variant="outline"
               onClick={() => setEditOpen(false)}
-              className="min-h-[44px] rounded-none"
+              className="min-h-[44px]"
             >
               ยกเลิก
             </Button>
             <Button
               onClick={handleSave}
               disabled={update.isPending || !filename.trim() || !category}
-              className="min-h-[44px] rounded-none"
+              className="min-h-[44px]"
             >
               {update.isPending ? "กำลังบันทึก…" : "บันทึก"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {lightbox && (
+        <Lightbox src={lightbox} alt={r?.filename} onClose={() => setLightbox(null)} />
+      )}
     </div>
   );
 }

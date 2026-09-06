@@ -1,15 +1,20 @@
+// Home (capture-first): rounded capture CTA + recent receipts as a
+// timeline with slide-over detail. Variant D styling.
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router";
-import { Camera, Library, Settings } from "lucide-react";
-import { listQueuedUploads, thumbUrl } from "@/lib/api-v2";
+import { Camera } from "lucide-react";
+import { listQueuedUploads, type Receipt } from "@/lib/api-v2";
 import { useReceiptsInfinite } from "@/lib/query";
 import { OutboxBadge } from "@/components/outbox-badge";
-import { Button } from "@/components/ui/button";
+import { TimelineList } from "@/components/timeline";
+import { ReceiptPanel } from "@/components/receipt-panel";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 
 export function Home() {
   const { data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useReceiptsInfinite({}, 30);
+  const [selected, setSelected] = useState<Receipt | null>(null);
   const [pending, setPending] = useState(0);
 
   const refreshOutbox = useCallback(async () => {
@@ -31,112 +36,86 @@ export function Home() {
   const items = data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
-      <header className="sticky top-0 z-10 border-b border-border bg-background">
-        <div className="mx-auto flex min-h-[56px] w-full max-w-3xl items-center justify-between px-4">
-          <span className="text-lg font-bold tracking-tight">Paper</span>
-          <nav className="flex items-center gap-1">
-            <OutboxBadge />
-            <Link
-              to="/lib"
-              aria-label="คลังเอกสาร"
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-foreground"
-            >
-              <Library className="h-5 w-5" />
-            </Link>
-            <Link
-              to="/settings"
-              aria-label="ตั้งค่า"
-              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center text-foreground"
-            >
-              <Settings className="h-5 w-5" />
-            </Link>
-          </nav>
-        </div>
+    <div className="mx-auto w-full max-w-2xl">
+      <header className="sticky top-12 z-10 -mx-3 flex min-h-[44px] items-center justify-between bg-background/95 px-3 backdrop-blur-sm lg:-mx-6 lg:px-6">
+        <span className="text-lg font-bold">Paper</span>
+        <OutboxBadge />
       </header>
 
-      <main className="mx-auto w-full max-w-3xl space-y-6 px-4 py-6">
-        <section aria-label="ถ่ายเอกสารใหม่">
+      <main className="space-y-6 px-1 py-4">
+        <section aria-label="ถ่่ายเอกสารใหม่">
           <Link
             to="/capture"
-            className="flex min-h-[120px] w-full flex-col items-center justify-center gap-2 rounded-none border-2 border-border bg-primary px-4 py-8 text-primary-foreground"
+            className="flex min-h-[120px] w-full flex-col items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-8 text-primary-foreground shadow-md transition-transform active:scale-[0.99]"
           >
-            <Camera className="h-10 w-10" />
-            <span className="text-lg font-bold">ถ่าย / อัปโหลดเอกสาร</span>
-            <span className="text-sm opacity-80">แตะเพื่อเริ่มสแกนใบเสร็จ</span>
+            <Camera className="h-9 w-9" />
+            <span className="text-base font-bold">ถ่่าย / อปัปโหลดเอกสาร</span>
+            <span className="text-sm opacity-70">แตะเพื่อเรื่ีมสแกนใบเสร็จ</span>
           </Link>
           {pending > 0 && (
             <Link
               to="/capture"
-              className="mt-3 flex min-h-[44px] items-center justify-between rounded-none border border-border bg-card px-4 text-sm"
+              className="mt-3 flex min-h-[44px] items-center justify-between rounded-xl border border-border bg-card px-4 text-sm"
             >
               <span>มีเอกสารรออัปโหลด {pending} รายการ</span>
-              <span className="font-bold underline">ดูคิว</span>
+              <span className="font-semibold underline">ดูคิว</span>
             </Link>
           )}
         </section>
 
         <section aria-label="เอกสารล่าสุด">
-          <div className="mb-3 flex min-h-[44px] items-center justify-between">
+          <div className="mb-2 flex min-h-[44px] items-center justify-between px-1">
             <h2 className="text-base font-bold">ล่าสุด</h2>
-            <Link to="/lib" className="inline-flex min-h-[44px] items-center text-sm underline">
-              ดูทั้งหมด
+            <Link to="/lib" className="inline-flex min-h-[44px] items-center text-sm font-semibold underline">
+              ดูท้่งหมด
             </Link>
           </div>
 
           {isLoading && (
-            <div className="grid grid-cols-3 gap-2">
-              {Array.from({ length: 9 }).map((_, i) => (
-                <Skeleton key={i} className="aspect-square w-full rounded-none" />
+            <div className="space-y-2">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="h-14 w-14 rounded-xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-2/3 rounded-md" />
+                    <Skeleton className="h-3 w-1/3 rounded-md" />
+                  </div>
+                </div>
               ))}
             </div>
           )}
 
           {isError && (
-            <p className="rounded-none border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+            <p className="rounded-2xl border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
               โหลดเอกสารไม่สำเร็จ กรุณาลองใหม่
             </p>
           )}
 
           {!isLoading && !isError && items.length === 0 && (
-            <p className="rounded-none border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-              ยังไม่มีเอกสาร แตะปุ่มด้านบนเพื่อเพิ่มใบเสร็จแรก
+            <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
+              ยังไม่มีเอกสาร แตะปุ่่มด้านบนเพื่่่มใบเสร็จแรก
             </p>
           )}
 
-          {items.length > 0 && (
+          {!isLoading && !isError && items.length > 0 && (
             <>
-              <div className="grid grid-cols-3 gap-2">
-                {items.map((r) => (
-                  <Link
-                    key={r.id}
-                    to={`/r/${r.id}`}
-                    aria-label={r.filename}
-                    className="block min-h-[44px] rounded-none border border-border bg-card"
-                  >
-                    <img
-                      src={thumbUrl(r)}
-                      alt={r.filename}
-                      loading="lazy"
-                      className="aspect-square w-full object-cover"
-                    />
-                  </Link>
-                ))}
-              </div>
+              <TimelineList items={items} onOpen={setSelected} />
               {hasNextPage && (
                 <Button
                   variant="outline"
                   onClick={() => void fetchNextPage()}
                   disabled={isFetchingNextPage}
-                  className="mt-4 min-h-[44px] w-full rounded-none"
+                  className="mt-3 min-h-[44px] w-full"
                 >
-                  {isFetchingNextPage ? "กำลังโหลด…" : "โหลดเพิ่ม"}
+                  {isFetchingNextPage ? "กำล่งโหลด…" : "โหลดเพิ่่ม"}
                 </Button>
               )}
             </>
           )}
         </section>
       </main>
+
+      {selected && <ReceiptPanel receipt={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }

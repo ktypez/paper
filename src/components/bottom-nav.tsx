@@ -34,7 +34,7 @@ export function BottomNav() {
             >
               {item.center ? (
                 <TouchArea asChild>
-                  <span className="relative -top-6 flex h-12 w-12 items-center justify-center rounded-none bg-primary text-primary-foreground transition-transform active:scale-90">
+                  <span className="relative -top-6 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md transition-transform active:scale-90">
                     <item.icon className="h-6 w-6" />
                   </span>
                 </TouchArea>

@@ -140,14 +140,14 @@ export function Capture() {
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex min-h-44 w-full flex-col items-center justify-center gap-2 border border-border bg-card p-8 text-foreground"
+          className="flex min-h-44 w-full flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-card p-8 text-foreground"
         >
           <Camera className="h-8 w-8" aria-hidden />
           <span className="text-sm font-medium">แตะเพื่อถ่ายรูปหรือเลือกไฟล์</span>
           <span className="text-xs text-muted-foreground">รูปภาพ (JPG/PNG/WebP) หรือ PDF สูงสุด 10MB</span>
         </button>
       ) : (
-        <div className="border border-border bg-card p-4">
+        <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
               {previewUrl ? (
@@ -190,7 +190,7 @@ export function Capture() {
         </div>
       )}
 
-      <div className="space-y-4 border border-border bg-card p-4">
+      <div className="space-y-4 rounded-2xl border border-border bg-card p-4">
         <div className="space-y-2">
           <Label htmlFor="capture-category">หมวดหมู่</Label>
           <Select value={category} onValueChange={setCategory} disabled={catsLoading || saving}>
@@ -233,13 +233,13 @@ export function Capture() {
       </div>
 
       {error && (
-        <p role="alert" className="border border-border bg-card p-3 text-sm text-foreground">
+        <p role="alert" className="rounded-xl border border-border bg-card p-3 text-sm text-foreground">
           {error}
         </p>
       )}
 
       {saving && (
-        <div className="space-y-2 border border-border bg-card p-4">
+        <div className="space-y-2 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-center justify-between text-sm text-foreground">
             <span>กำลังอัปโหลด...</span>
             <span>{progress}%</span>

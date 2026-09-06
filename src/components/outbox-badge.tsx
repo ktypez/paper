@@ -39,7 +39,7 @@ export function OutboxBadge() {
 
   if (count === 0) return null;
   return (
-    <Badge variant="secondary" className="rounded-none">
+    <Badge variant="secondary" className="sm:max-w-md">
       รอส่ง {count}
     </Badge>
   );
