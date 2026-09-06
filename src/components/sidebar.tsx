@@ -22,8 +22,8 @@ export function Sidebar({ open }: SidebarProps) {
         open ? "translate-x-0" : "-translate-x-56"
       )}
     >
-      <div className="flex h-14 items-center gap-2 border-b border-sidebar-border px-4">
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-primary text-primary-foreground">
+      <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <FileText className="h-4 w-4" />
         </span>
         <span className="font-display text-xl font-semibold tracking-tight text-sidebar-foreground">
@@ -31,7 +31,7 @@ export function Sidebar({ open }: SidebarProps) {
         </span>
       </div>
 
-      <nav className="flex-1 space-y-1 p-2">
+      <nav className="flex-1 space-y-1.5 p-3">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -39,7 +39,7 @@ export function Sidebar({ open }: SidebarProps) {
             end={item.to === "/"}
             className={({ isActive }) =>
               cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors active:scale-[0.98] h-11",
+                "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors active:scale-[0.98] h-11",
                 isActive
                   ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
                   : "text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground"
