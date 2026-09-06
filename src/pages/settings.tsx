@@ -1,165 +1,204 @@
-import {
-  Sun,
-  Moon,
-  FileText,
-  HardDrive,
-  LogOut,
-  User,
-  Check,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Download, FileText, LogOut, Moon, Sun, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardContent,
+  CardDescription,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { useTheme } from "@/lib/theme-provider";
-import { useReceipts } from "@/hooks/use-receipts";
+import { listQueuedUploads } from "@/lib/api-v2";
+import { queryClient, useCategories } from "@/lib/query";
 import { useClerk, useUser } from "@clerk/clerk-react";
-import { formatSize } from "@/lib/utils";
 
-const themeOptions = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-] as const;
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>;
+  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
+}
 
 export function Settings() {
   const { theme, toggle } = useTheme();
-  const { receipts } = useReceipts();
   const { signOut } = useClerk();
   const { user } = useUser();
-  const totalStorage = receipts.reduce((sum, r) => sum + r.size, 0);
+  const { data: categories } = useCategories();
+  const [queued, setQueued] = useState(0);
+  const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [clearing, setClearing] = useState(false);
+
+  useEffect(() => {
+    listQueuedUploads()
+      .then((items) => setQueued(items.length))
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallEvt(e as BeforeInstallPromptEvent);
+    };
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    return () => window.removeEventListener("beforeinstallprompt", onPrompt);
+  }, []);
+
+  async function handleInstall() {
+    if (!installEvt) return;
+    await installEvt.prompt();
+    await installEvt.userChoice;
+    setInstallEvt(null);
+  }
+
+  async function handleClearCache() {
+    setClearing(true);
+    try {
+      queryClient.clear();
+      if ("caches" in window) {
+        const names = await caches.keys();
+        await Promise.all(names.map((n) => caches.delete(n)));
+      }
+      toast.success("ล้าง cache แล้ว");
+    } catch {
+      toast.error("ล้าง cache ไม่สำเร็จ");
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  const totalDocs = (categories ?? []).reduce((sum, c) => sum + c.count, 0);
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      {/* Profile */}
+    <div className="mx-auto max-w-2xl space-y-4">
+      <h1 className="text-lg font-semibold text-foreground">ตั้งค่า</h1>
+
       {user && (
         <Card>
           <CardHeader>
-            <CardTitle className="font-display text-lg">Account</CardTitle>
+            <CardTitle className="text-base">บัญชี</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center gap-4">
-              {user.imageUrl ? (
-                <img
-                  src={user.imageUrl}
-                  alt=""
-                  className="h-14 w-14 rounded-full border border-border"
-                />
-              ) : (
-                <div className="flex h-14 w-14 items-center justify-center rounded-full border border-border bg-muted">
-                  <User className="h-6 w-6 text-muted-foreground" />
-                </div>
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="truncate font-medium">
-                  {user.fullName || user.primaryEmailAddress?.emailAddress}
-                </p>
-                {user.primaryEmailAddress && (
-                  <p className="truncate text-sm text-muted-foreground">
-                    {user.primaryEmailAddress.emailAddress}
-                  </p>
-                )}
-              </div>
-            </div>
+            <p className="truncate text-sm font-medium text-foreground">
+              {user.fullName || user.primaryEmailAddress?.emailAddress}
+            </p>
+            {user.primaryEmailAddress && (
+              <p className="truncate text-sm text-muted-foreground">
+                {user.primaryEmailAddress.emailAddress}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Appearance */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-lg">Appearance</CardTitle>
-          <CardDescription>
-            เลือกธีมสำหรับแอป
-          </CardDescription>
+          <CardTitle className="text-base">ธีม</CardTitle>
+          <CardDescription>เลือกธีมสำหรับแอป</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
-            {themeOptions.map(({ value, label, icon: Icon }) => (
-              <button
-                key={value}
-                onClick={() => {
-                  if (theme !== value) toggle();
-                }}
-                className={`relative flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${
-                  theme === value
-                    ? "border-primary bg-primary/5"
-                    : "border-border hover:border-muted-foreground/50"
-                }`}
-              >
-                {theme === value && (
-                  <div className="absolute right-2 top-2">
-                    <Check className="h-4 w-4 text-primary" />
-                  </div>
-                )}
-                <Icon className="h-5 w-5 text-muted-foreground" />
-                <span className="text-sm font-medium">{label}</span>
-              </button>
-            ))}
+            <button
+              type="button"
+              onClick={() => theme !== "light" && toggle()}
+              className={`touch-target flex items-center justify-center gap-2 border p-3 text-sm font-medium ${
+                theme === "light"
+                  ? "border-border bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground"
+              }`}
+            >
+              <Sun className="h-4 w-4" aria-hidden /> สว่าง
+            </button>
+            <button
+              type="button"
+              onClick={() => theme !== "dark" && toggle()}
+              className={`touch-target flex items-center justify-center gap-2 border p-3 text-sm font-medium ${
+                theme === "dark"
+                  ? "border-border bg-primary text-primary-foreground"
+                  : "border-border bg-card text-foreground"
+              }`}
+            >
+              <Moon className="h-4 w-4" aria-hidden /> มืด
+            </button>
           </div>
         </CardContent>
       </Card>
 
-      {/* Storage */}
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-lg">Storage</CardTitle>
-          <CardDescription>พื้นที่จัดเก็บเอกสารของคุณ</CardDescription>
+          <CardTitle className="text-base">พื้นที่จัดเก็บ</CardTitle>
+          <CardDescription>ภาพรวมเอกสารของคุณ</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Total documents</span>
+              <FileText className="h-4 w-4 text-muted-foreground" aria-hidden />
+              <span className="text-sm text-foreground">เอกสารทั้งหมด</span>
             </div>
-            <Badge variant="secondary">{receipts.length}</Badge>
+            <Badge variant="secondary">{totalDocs}</Badge>
           </div>
           <Separator />
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <HardDrive className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm">Storage used</span>
-            </div>
-            <Badge variant="secondary">{formatSize(totalStorage)}</Badge>
+            <span className="text-sm text-foreground">หมวดหมู่</span>
+            <Badge variant="secondary">{categories?.length ?? 0}</Badge>
+          </div>
+          <Separator />
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-foreground">คิวรออัปโหลด (ออฟไลน์)</span>
+            <Badge variant="secondary">{queued}</Badge>
           </div>
         </CardContent>
       </Card>
 
-      {/* About */}
+      {installEvt && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">ติดตั้งแอป</CardTitle>
+            <CardDescription>ติดตั้ง Paper ลงหน้าจอหลักเพื่อใช้งานแบบออฟไลน์</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button className="touch-target w-full gap-2" onClick={handleInstall}>
+              <Download className="h-4 w-4" aria-hidden /> ติดตั้งแอป
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-lg">About</CardTitle>
+          <CardTitle className="text-base">แคช</CardTitle>
+          <CardDescription>ล้างข้อมูลแคชในเครื่องแล้วโหลดข้อมูลใหม่</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4" />
-            <span className="font-medium text-foreground">Paper</span>
-            <Badge variant="outline" className="text-xs">
-              v2.0.0
-            </Badge>
-          </div>
-          <p>Personal document storage built with React & Cloudflare.</p>
+        <CardContent>
+          <Button
+            variant="outline"
+            className="touch-target w-full gap-2"
+            onClick={handleClearCache}
+            disabled={clearing}
+          >
+            <Trash2 className="h-4 w-4" aria-hidden />
+            {clearing ? "กำลังล้าง..." : "ล้าง cache"}
+          </Button>
         </CardContent>
       </Card>
 
-      {/* Sign out */}
-      <div className="flex justify-center pb-8">
+      <div className="flex justify-center pb-4">
         <Button
           variant="outline"
-          className="gap-2 text-destructive hover:text-destructive"
+          className="touch-target gap-2"
           onClick={async () => {
             await signOut();
             window.location.assign("/");
           }}
         >
-          <LogOut className="h-4 w-4" /> Sign out
+          <LogOut className="h-4 w-4" aria-hidden /> ออกจากระบบ
         </Button>
       </div>
+
+      <p className="pb-8 text-center text-xs text-muted-foreground">
+        Paper v2.0.0 · เก็บเอกสารส่วนตัวด้วย React และ Cloudflare
+      </p>
     </div>
   );
 }

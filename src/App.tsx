@@ -1,51 +1,61 @@
 import { lazy, Suspense } from "react";
-import { motion, useReducedMotion } from "framer-motion";
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router";
 import { ClerkProvider, useAuth } from "@clerk/clerk-react";
 import { thTH } from "@clerk/localizations";
 import { ThemeProvider } from "@/lib/theme-provider";
+import { QueryProvider } from "@/lib/query";
+import { useOutboxDrain } from "@/lib/outbox";
 import { Layout } from "@/components/layout";
 import { PaperPlane } from "@/components/paper-plane";
 
-const Dashboard = lazy(() => import("@/pages/dashboard").then(m => ({ default: m.Dashboard })));
-const Receipts = lazy(() => import("@/pages/receipts").then(m => ({ default: m.Receipts })));
-const ReceiptDetail = lazy(() => import("@/pages/receipt-detail").then(m => ({ default: m.ReceiptDetail })));
-const Upload = lazy(() => import("@/pages/upload").then(m => ({ default: m.Upload })));
-const Categories = lazy(() => import("@/pages/categories").then(m => ({ default: m.Categories })));
-const Settings = lazy(() => import("@/pages/settings").then(m => ({ default: m.Settings })));
-const Login = lazy(() => import("@/pages/login").then(m => ({ default: m.Login })));
+const Home = lazy(() => import("@/pages/home").then((m) => ({ default: m.Home })));
+const Library = lazy(() => import("@/pages/library").then((m) => ({ default: m.Library })));
+const ReceiptDetail = lazy(() =>
+  import("@/pages/receipt-detail").then((m) => ({ default: m.ReceiptDetail }))
+);
+const Capture = lazy(() => import("@/pages/capture").then((m) => ({ default: m.Capture })));
+const Categories = lazy(() =>
+  import("@/pages/categories").then((m) => ({ default: m.Categories }))
+);
+const Settings = lazy(() => import("@/pages/settings").then((m) => ({ default: m.Settings })));
+const Login = lazy(() => import("@/pages/login").then((m) => ({ default: m.Login })));
 
 function PageLoader() {
-  const reduce = useReducedMotion();
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-3 bg-background">
-      <motion.div
-        initial={false}
-        animate={reduce ? {} : { y: [0, -8, 0] }}
-        transition={{ repeat: Infinity, duration: 1.2, ease: "easeInOut" }}
-      >
-        <PaperPlane />
-      </motion.div>
+      <PaperPlane />
       <p className="text-sm text-muted-foreground">กำลังพับกระดาษ...</p>
     </div>
   );
 }
 
 function AppRoutes() {
+  useOutboxDrain();
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="receipts" element={<Receipts />} />
-          <Route path="receipts/:id" element={<ReceiptDetail />} />
-          <Route path="upload" element={<Upload />} />
+          <Route index element={<Home />} />
+          <Route path="lib" element={<Library />} />
+          <Route path="r/:id" element={<ReceiptDetail />} />
+          <Route path="capture" element={<Capture />} />
           <Route path="categories" element={<Categories />} />
           <Route path="settings" element={<Settings />} />
+          {/* v1 routes → v2 equivalents */}
+          <Route path="dashboard" element={<Navigate to="/" replace />} />
+          <Route path="receipts" element={<Navigate to="/lib" replace />} />
+          <Route path="receipts/:id" element={<ReceiptToV2 />} />
+          <Route path="upload" element={<Navigate to="/capture" replace />} />
         </Route>
       </Routes>
     </Suspense>
   );
+}
+
+import { useParams } from "react-router";
+function ReceiptToV2() {
+  const { id } = useParams();
+  return <Navigate to={`/r/${id}`} replace />;
 }
 
 function Root() {
@@ -82,9 +92,11 @@ export default function App() {
   return (
     <ThemeProvider>
       <ClerkProvider publishableKey={publishableKey} localization={thTH}>
-        <BrowserRouter>
-          <Root />
-        </BrowserRouter>
+        <QueryProvider>
+          <BrowserRouter>
+            <Root />
+          </BrowserRouter>
+        </QueryProvider>
       </ClerkProvider>
     </ThemeProvider>
   );

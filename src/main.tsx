@@ -1,13 +1,10 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import "@fontsource-variable/geist";
 import "@fontsource-variable/noto-sans-thai";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
-import "@fontsource/jetbrains-mono/400.css";
-import "@fontsource/jetbrains-mono/500.css";
 import App from "./App";
 import "./index.css";
 
@@ -17,18 +14,9 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>
 );
 
-// PWA removed: no service worker, no install prompt. On this and every
-// future load we actively unregister any leftover SW + wipe its caches,
-// so stale bundles can never be served from the SW again.
+// PWA: register the injectManifest service worker (offline + background sync).
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.getRegistrations().then((regs) => {
-      regs.forEach((r) => r.unregister().catch(() => {}));
-    });
-    if (window.caches) {
-      caches.keys().then((keys) =>
-        Promise.all(keys.map((k) => caches.delete(k))).catch(() => {})
-      );
-    }
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
 }

@@ -1,395 +1,298 @@
-import { useParams, useNavigate, Link } from "react-router";
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  ArrowLeft,
-  Trash2,
-  FileText,
-  Download,
-  AlertCircle,
-  Pencil,
-  Check,
-  X,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
+import { ArrowLeft, FileText, Pencil, Trash2 } from "lucide-react";
+import { isImage, origUrl } from "@/lib/api-v2";
+import { useCategories, useDeleteReceipt, useReceipt, useUpdateReceipt } from "@/lib/query";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import { CategorySelect } from "@/components/category-select";
-import { useReceipts } from "@/hooks/use-receipts";
-import { formatDate, formatSize, stripExtension, cn } from "@/lib/utils";
-import { categoryText } from "@/lib/category-colors";
-import { getFileUrl, updateReceipt } from "@/lib/api";
-import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+
+function formatSize(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("th-TH");
+}
 
 export function ReceiptDetail() {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
-  const { receipts, loading, remove, reload } = useReceipts();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [editFilename, setEditFilename] = useState("");
-  const [editCategory, setEditCategory] = useState("");
-  const [editOwner, setEditOwner] = useState("");
-  const [editNotes, setEditNotes] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [lightbox, setLightbox] = useState(false);
+  const receipt = useReceipt(id);
+  const cats = useCategories();
+  const update = useUpdateReceipt();
+  const del = useDeleteReceipt();
 
-  const receipt = receipts.find((r) => r.id === id);
+  const [editOpen, setEditOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [filename, setFilename] = useState("");
+  const [category, setCategory] = useState("");
+  const [owner, setOwner] = useState("");
+  const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    if (!loading && !receipt && receipts.length > 0) {
-      navigate("/receipts", { replace: true });
+    if (receipt.data) {
+      setFilename(receipt.data.filename);
+      setCategory(receipt.data.category);
+      setOwner(receipt.data.owner ?? "");
+      setNotes(receipt.data.notes ?? "");
     }
-  }, [loading, receipt, receipts, navigate]);
+  }, [receipt.data]);
 
-  const startEditing = () => {
-    if (!receipt) return;
-    setEditFilename(stripExtension(receipt.filename));
-    setEditCategory(receipt.category);
-    setEditOwner(receipt.owner || "");
-    setEditNotes(receipt.notes || "");
-    setEditMode(true);
-  };
+  const r = receipt.data;
 
-  const cancelEditing = () => {
-    setEditMode(false);
-  };
-
-  const handleSave = async () => {
+  function handleSave() {
     if (!id) return;
-    const name = editFilename.trim();
-    if (!name) return;
-    setSaving(true);
-    try {
-      await updateReceipt(id, {
-        filename: name,
-        category: editCategory,
-        owner: editOwner || null,
-        notes: editNotes,
-      });
-      setEditMode(false);
-      toast.success("Receipt updated");
-      reload();
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to update");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async () => {
-    if (!id) return;
-    setDeleting(true);
-    try {
-      await remove(id);
-      toast.success("Receipt deleted");
-      navigate("/receipts");
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed to delete");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-3xl space-y-6">
-        {/* Header skeleton */}
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-9 w-9 rounded-md" />
-          <Skeleton className="h-6 w-48" />
-        </div>
-        {/* Content skeleton */}
-        <div className="rounded-xl border border-border bg-card p-6">
-          <div className="grid gap-6 md:grid-cols-2">
-            <Skeleton className="aspect-[3/4] w-full rounded-md" />
-            <div className="space-y-4">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="space-y-1.5">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-4 w-32" />
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
+    update.mutate(
+      {
+        id,
+        patch: {
+          filename: filename.trim() || r?.filename,
+          category,
+          owner: owner.trim() ? owner.trim() : null,
+          notes: notes.trim() ? notes.trim() : null,
+        },
+      },
+      { onSuccess: () => setEditOpen(false) }
     );
   }
 
-  if (!receipt) {
-    return (
-      <div className="flex flex-col items-center gap-4 py-20">
-        <AlertCircle className="h-10 w-10 text-muted-foreground" />
-        <p className="text-muted-foreground">Receipt not found</p>
-        <Button variant="outline" asChild>
-          <Link to="/receipts">Back to documents</Link>
-        </Button>
-      </div>
-    );
+  function handleDelete() {
+    if (!id) return;
+    del.mutate(id, { onSuccess: () => navigate("/lib") });
   }
-
-  const isImage = receipt.content_type.startsWith("image/");
-  const isPdf = receipt.content_type === "application/pdf";
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" asChild className="hidden lg:inline-flex">
-          <Link to="/receipts">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <h2 className="truncate text-lg font-semibold">
-          {stripExtension(receipt.filename)}
-        </h2>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Preview</CardTitle>
-          </CardHeader>
-          <CardContent className="p-4 lg:p-6">
-            <div className="flex items-center justify-center rounded-lg border border-border bg-background min-h-[300px]">
-              {isImage ? (
-                <img
-                  src={getFileUrl(receipt.id)}
-                  alt={receipt.filename}
-                  className="max-h-[600px] max-w-full object-contain cursor-pointer"
-                  onClick={() => setLightbox(true)}
-                />
-              ) : isPdf ? (
-                <iframe
-                  src={getFileUrl(receipt.id)}
-                  className="h-[600px] w-full rounded-lg"
-                  title={receipt.filename}
-                />
-              ) : (
-                <div className="flex flex-col items-center gap-3 py-10">
-                  <FileText className="h-16 w-16 text-muted-foreground/50" />
-                  <p className="text-sm text-muted-foreground">
-                    Preview not available
-                  </p>
-                  <Button variant="outline" asChild>
-                    <a
-                      href={getFileUrl(receipt.id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <Download className="mr-1 h-4 w-4" /> Download file
-                    </a>
-                  </Button>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Details</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Filename</p>
-              {editMode ? (
-                <Input
-                  value={editFilename}
-                  onChange={(e) => setEditFilename(e.target.value)}
-                  className="mt-1"
-                />
-              ) : (
-                <p className="text-sm font-medium break-all">
-                  {stripExtension(receipt.filename)}
-                </p>
-              )}
-            </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-xs text-muted-foreground">Category</p>
-              {editMode ? (
-                <div className="mt-1">
-                  <CategorySelect value={editCategory} onChange={setEditCategory} />
-                </div>
-              ) : (
-                <Badge variant="outline" className={cn("mt-1 font-semibold", categoryText(receipt.category))}>
-                  {receipt.category}
-                </Badge>
-              )}
-            </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-xs text-muted-foreground">Owner / Folder</p>
-              {editMode ? (
-                <Input
-                  value={editOwner}
-                  onChange={(e) => setEditOwner(e.target.value)}
-                  placeholder="(optional)"
-                  className="mt-1"
-                />
-              ) : receipt.owner ? (
-                <Badge variant="outline" className="mt-1">
-                  {receipt.owner}
-                </Badge>
-              ) : (
-                <p className="mt-1 text-sm text-muted-foreground italic">
-                  None
-                </p>
-              )}
-            </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-xs text-muted-foreground">File type</p>
-              <p className="text-sm">{receipt.content_type}</p>
-            </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-xs text-muted-foreground">Size</p>
-              <p className="text-sm">{formatSize(receipt.size)}</p>
-            </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-xs text-muted-foreground">Notes</p>
-              {editMode ? (
-                <textarea
-                  value={editNotes}
-                  onChange={(e) => setEditNotes(e.target.value)}
-                  placeholder="Add a note..."
-                  rows={3}
-                  className="mt-1 flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                />
-              ) : receipt.notes ? (
-                <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-                  {receipt.notes}
-                </p>
-              ) : (
-                <p className="mt-1 text-sm text-muted-foreground italic">No notes</p>
-              )}
-            </div>
-
-            <Separator />
-
-            <div>
-              <p className="text-xs text-muted-foreground">Uploaded at</p>
-              <p className="text-sm">{formatDate(receipt.uploaded_at)}</p>
-            </div>
-
-            <Separator />
-
-            <div className="flex gap-2 pt-2">
-              {editMode ? (
-                <>
-                  <Button
-                    className="flex-1"
-                    onClick={handleSave}
-                    disabled={saving}
-                  >
-                    <Check className="mr-1 h-4 w-4" />
-                    {saving ? "Saving..." : "Save"}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={cancelEditing}
-                    disabled={saving}
-                  >
-                    <X className="mr-1 h-4 w-4" /> Cancel
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button
-                    variant="default"
-                    className="flex-1"
-                    onClick={startEditing}
-                  >
-                    <Pencil className="mr-1 h-4 w-4" /> Edit
-                  </Button>
-                  <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="destructive" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Delete receipt</DialogTitle>
-                        <DialogDescription>
-                          Are you sure you want to delete{" "}
-                          <strong>{receipt.filename}</strong>? This action cannot
-                          be undone.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button
-                          variant="outline"
-                          onClick={() => setDeleteOpen(false)}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          variant="destructive"
-                          onClick={handleDelete}
-                          disabled={deleting}
-                        >
-                          {deleting ? "Deleting..." : "Delete"}
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <AnimatePresence>
-        {lightbox && isImage && (
-          <motion.div
-            key="lightbox"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-            onClick={() => setLightbox(false)}
+    <div className="min-h-dvh bg-background text-foreground">
+      <header className="sticky top-0 z-10 border-b border-border bg-background">
+        <div className="mx-auto flex min-h-[56px] w-full max-w-3xl items-center gap-2 px-4">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label="กลับ"
+            className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
           >
-            <motion.img
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              src={getFileUrl(receipt.id)}
-              alt={receipt.filename}
-              className="max-h-[95vh] max-w-[95vw] object-contain"
-            />
-          </motion.div>
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          <h1 className="flex-1 truncate text-base font-bold">
+            {r ? r.filename : "รายละเอียดเอกสาร"}
+          </h1>
+          {r && (
+            <button
+              type="button"
+              onClick={() => setEditOpen(true)}
+              aria-label="แก้ไข"
+              className="inline-flex min-h-[44px] min-w-[44px] items-center justify-center"
+            >
+              <Pencil className="h-5 w-5" />
+            </button>
+          )}
+        </div>
+      </header>
+
+      <main className="mx-auto w-full max-w-3xl space-y-4 px-4 py-4">
+        {receipt.isLoading && (
+          <div className="space-y-3">
+            <Skeleton className="aspect-square w-full rounded-none" />
+            <Skeleton className="h-5 w-2/3 rounded-none" />
+            <Skeleton className="h-5 w-1/3 rounded-none" />
+          </div>
         )}
-      </AnimatePresence>
+
+        {receipt.isError && (
+          <div className="rounded-none border border-border bg-card px-4 py-6 text-center text-sm">
+            <p className="text-muted-foreground">โหลดเอกสารไม่สำเร็จ อาจถูกลบไปแล้ว</p>
+            <Link to="/lib" className="mt-3 inline-flex min-h-[44px] items-center underline">
+              กลับไปคลังเอกสาร
+            </Link>
+          </div>
+        )}
+
+        {r && (
+          <>
+            <section
+              aria-label="ไฟล์ต้นฉบับ"
+              className="rounded-none border border-border bg-card"
+            >
+              {isImage(r) ? (
+                <img
+                  src={origUrl(r)}
+                  alt={r.filename}
+                  loading="lazy"
+                  className="w-full object-contain"
+                />
+              ) : (
+                <div className="p-4">
+                  <p className="mb-2 flex min-h-[44px] items-center gap-2 text-sm text-muted-foreground">
+                    <FileText className="h-5 w-5" />
+                    ไฟล์ PDF — แสดงตัวอย่างด้านล่าง
+                  </p>
+                  <iframe
+                    src={origUrl(r)}
+                    title={r.filename}
+                    className="h-[60vh] w-full rounded-none border border-border bg-background"
+                  />
+                </div>
+              )}
+            </section>
+
+            <section aria-label="ข้อมูลเอกสาร" className="space-y-2 text-sm">
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+                <span className="text-muted-foreground">ชื่อไฟล์</span>
+                <span className="truncate font-medium">{r.filename}</span>
+              </div>
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+                <span className="text-muted-foreground">หมวดหมู่</span>
+                <span className="font-medium">{r.category}</span>
+              </div>
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+                <span className="text-muted-foreground">เจ้าของ</span>
+                <span className="font-medium">{r.owner ?? "—"}</span>
+              </div>
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+                <span className="text-muted-foreground">วันที่อัปโหลด</span>
+                <span className="font-medium">{formatDate(r.uploaded_at)}</span>
+              </div>
+              <div className="flex min-h-[44px] items-center justify-between gap-3 rounded-none border border-border bg-card px-4">
+                <span className="text-muted-foreground">ขนาด</span>
+                <span className="font-medium">{formatSize(r.size)}</span>
+              </div>
+              {r.notes && (
+                <div className="rounded-none border border-border bg-card px-4 py-3">
+                  <p className="text-muted-foreground">โน้ต</p>
+                  <p className="mt-1 whitespace-pre-wrap">{r.notes}</p>
+                </div>
+              )}
+            </section>
+
+            <section aria-label="ลบเอกสาร" className="pb-8">
+              {!confirmDelete ? (
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirmDelete(true)}
+                  className="min-h-[44px] w-full rounded-none"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  ลบเอกสาร
+                </Button>
+              ) : (
+                <div className="rounded-none border border-border bg-card p-4">
+                  <p className="text-sm font-bold">ยืนยันการลบเอกสารนี้?</p>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => setConfirmDelete(false)}
+                      className="min-h-[44px] flex-1 rounded-none"
+                    >
+                      ยกเลิก
+                    </Button>
+                    <Button
+                      onClick={handleDelete}
+                      disabled={del.isPending}
+                      className="min-h-[44px] flex-1 rounded-none"
+                    >
+                      {del.isPending ? "กำลังลบ…" : "ยืนยันลบ"}
+                    </Button>
+                  </div>
+                  {del.isError && (
+                    <p className="mt-2 text-sm text-muted-foreground">ลบไม่สำเร็จ กรุณาลองใหม่</p>
+                  )}
+                </div>
+              )}
+            </section>
+          </>
+        )}
+      </main>
+
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="rounded-none">
+          <DialogHeader>
+            <DialogTitle>แก้ไขเอกสาร</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="edit-filename">ชื่อไฟล์</Label>
+              <Input
+                id="edit-filename"
+                value={filename}
+                onChange={(e) => setFilename(e.target.value)}
+                className="min-h-[44px] rounded-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-category">หมวดหมู่</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger id="edit-category" className="min-h-[44px] rounded-none">
+                  <SelectValue placeholder="เลือกหมวดหมู่" />
+                </SelectTrigger>
+                <SelectContent>
+                  {(cats.data ?? []).map((c) => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-owner">เจ้าของ</Label>
+              <Input
+                id="edit-owner"
+                value={owner}
+                onChange={(e) => setOwner(e.target.value)}
+                placeholder="เช่น บ้าน, บริษัท"
+                className="min-h-[44px] rounded-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="edit-notes">โน้ต</Label>
+              <Input
+                id="edit-notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="รายละเอียดเพิ่มเติม"
+                className="min-h-[44px] rounded-none"
+              />
+            </div>
+            {update.isError && (
+              <p className="text-sm text-muted-foreground">บันทึกไม่สำเร็จ กรุณาลองใหม่</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditOpen(false)}
+              className="min-h-[44px] rounded-none"
+            >
+              ยกเลิก
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={update.isPending || !filename.trim() || !category}
+              className="min-h-[44px] rounded-none"
+            >
+              {update.isPending ? "กำลังบันทึก…" : "บันทึก"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

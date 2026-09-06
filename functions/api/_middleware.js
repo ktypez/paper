@@ -1,9 +1,13 @@
-import { createClerkClient } from "@clerk/backend";
+import { fastAuth } from "./_lib/auth.js";
 
 // Guards every /api/* route (except auth-related handlers).
 // Access control: the signed-in user must have "paper" in their
 // Clerk private_metadata.apps (managed via the access manager at
 // me.mcky.space). Otherwise → styled 401 with a link back to the portal.
+//
+// Fast path: session JWT is verified locally against a cached JWKS
+// (~0ms hot) instead of 2 blocking Clerk API round-trips per request.
+// Access decisions are cached per user for 5 min per isolate.
 export async function onRequest(context) {
   const url = new URL(context.request.url);
   // Bypass for any /api/auth handlers.
@@ -11,35 +15,8 @@ export async function onRequest(context) {
     return context.next();
   }
 
-  const clerkClient = createClerkClient({
-    secretKey: context.env.CLERK_SECRET_KEY,
-    publishableKey: context.env.CLERK_PUBLISHABLE_KEY,
-  });
-
-  let state;
-  try {
-    state = await clerkClient.authenticateRequest(context.request);
-  } catch (err) {
-    return unauthorized();
-  }
-
-  if (state.status !== "signed-in") {
-    return unauthorized();
-  }
-
-  const auth = state.toAuth();
-
-  // Access check: user must be granted this app (private_metadata.apps).
-  try {
-    const clerkUser = await clerkClient.users.getUser(auth.userId);
-    const apps = clerkUser.privateMetadata && Array.isArray(clerkUser.privateMetadata.apps)
-      ? clerkUser.privateMetadata.apps
-      : [];
-    if (!apps.includes("paper")) {
-      return unauthorized();
-    }
-  } catch (err) {
-    // If we cannot resolve the user's access, fail closed.
+  const auth = await fastAuth(context.request, context.env);
+  if (!auth.ok) {
     return unauthorized();
   }
 

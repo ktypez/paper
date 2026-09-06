@@ -1,17 +1,9 @@
 import { useState } from "react";
-import { motion, Reorder, useReducedMotion } from "framer-motion";
-import {
-  Plus,
-  Pencil,
-  Trash2,
-  AlertCircle,
-  MoreHorizontal,
-  GripVertical,
-  FolderOpen,
-} from "lucide-react";
+import { AlertCircle, Pencil, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -20,145 +12,125 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { TouchArea } from "@/components/ui/touch-area";
-import { useCategories } from "@/hooks/use-categories";
-import { useReceipts } from "@/hooks/use-receipts";
-import { useMediaQuery } from "@/lib/use-media-query";
-import { toast } from "sonner";
+import { useCategories } from "@/lib/query";
 
-// Color palette for category cards
-const catColors = [
-  "from-amber-500/10 to-orange-500/10 border-l-amber-500",
-  "from-blue-500/10 to-cyan-500/10 border-l-blue-500",
-  "from-green-500/10 to-emerald-500/10 border-l-green-500",
-  "from-purple-500/10 to-pink-500/10 border-l-purple-500",
-  "from-rose-500/10 to-red-500/10 border-l-rose-500",
-  "from-teal-500/10 to-cyan-500/10 border-l-teal-500",
-  "from-indigo-500/10 to-blue-500/10 border-l-indigo-500",
-  "from-pink-500/10 to-rose-500/10 border-l-pink-500",
-];
+async function req<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, init);
+  const text = await res.text();
+  let data: T | null = null;
+  try {
+    data = text ? (JSON.parse(text) as T) : null;
+  } catch {
+    if (!res.ok) throw new Error(text || `HTTP ${res.status}`);
+    return text as unknown as T;
+  }
+  if (!res.ok) {
+    const msg = (data as unknown as { error?: string })?.error || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data as T;
+}
 
-function getCatColor(index: number) {
-  return catColors[index % catColors.length];
+interface V1Category {
+  id: string;
+  name: string;
 }
 
 export function Categories() {
-  const {
-    categories,
-    loading,
-    error,
-    reload,
-    create,
-    update,
-    remove,
-    reorderCats,
-  } = useCategories();
-  const { receipts } = useReceipts();
-  const isDesktop = useMediaQuery("(min-width: 768px)");
-  const reduce = useReducedMotion();
+  const { data, isLoading, isError, refetch } = useCategories();
 
-  // Add state
   const [newName, setNewName] = useState("");
   const [adding, setAdding] = useState(false);
-  const [addTouched, setAddTouched] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
-  // Edit state
   const [editId, setEditId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
-  const [editTouched, setEditTouched] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
-  // Delete state
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // Drag state
-  const [dragId, setDragId] = useState<string | null>(null);
-
-  const receiptCounts = receipts.reduce<Record<string, number>>((acc, r) => {
-    acc[r.category] = (acc[r.category] || 0) + 1;
-    return acc;
-  }, {});
-
-  const maxCount = Math.max(1, ...Object.values(receiptCounts));
-
-  const handleAdd = async () => {
+  async function handleAdd() {
     const name = newName.trim();
-    setAddTouched(true);
-    if (!name) return;
+    setFormError(null);
+    if (!name) {
+      setFormError("กรุณากรอกชื่อหมวดหมู่");
+      return;
+    }
     setAdding(true);
     try {
-      await create(name);
+      await req<V1Category>("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
       setNewName("");
-      setAddTouched(false);
       toast.success("เพิ่มหมวดหมู่แล้ว");
+      refetch();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "เพิ่มไม่สำเร็จ");
+      setFormError(e instanceof Error ? e.message : "เพิ่มไม่สำเร็จ");
     } finally {
       setAdding(false);
     }
-  };
+  }
 
-  const handleEdit = async (id: string) => {
+  function startEdit(id: string, name: string) {
+    setEditId(id);
+    setEditName(name);
+    setEditError(null);
+  }
+
+  async function handleEdit(id: string) {
     const name = editName.trim();
-    setEditTouched(true);
-    if (!name) return;
+    setEditError(null);
+    if (!name) {
+      setEditError("กรุณากรอกชื่อหมวดหมู่");
+      return;
+    }
     setEditSaving(true);
     try {
-      await update(id, name);
+      await req(`/api/categories/${encodeURIComponent(id)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
       setEditId(null);
       toast.success("แก้ไขแล้ว");
+      refetch();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "แก้ไขไม่สำเร็จ");
+      setEditError(e instanceof Error ? e.message : "แก้ไขไม่สำเร็จ");
     } finally {
       setEditSaving(false);
     }
-  };
+  }
 
-  const handleDelete = async () => {
+  async function handleDelete() {
     if (!deleteId) return;
+    setDeleteError(null);
     setDeleting(true);
     try {
-      await remove(deleteId);
+      await req(`/api/categories/${encodeURIComponent(deleteId)}`, {
+        method: "DELETE",
+      });
+      setDeleteId(null);
       toast.success("ลบแล้ว");
+      refetch();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "ลบไม่สำเร็จ");
+      setDeleteError(e instanceof Error ? e.message : "ลบไม่สำเร็จ");
     } finally {
       setDeleting(false);
-      setDeleteId(null);
     }
-  };
+  }
 
-  const startEdit = (id: string, name: string) => {
-    setEditId(id);
-    setEditName(name);
-    setEditTouched(false);
-  };
-
-  // Reorder handler for mobile (using framer-motion Reorder)
-  const handleReorder = async (newOrder: typeof categories) => {
-    const ids = newOrder.map((c) => c.id);
-    try {
-      await reorderCats(ids);
-    } catch (e) {
-      toast.error("เรียงลำดับไม่สำเร็จ");
-      reload();
-    }
-  };
-
-  if (error) {
+  if (isError) {
     return (
       <div className="flex flex-col items-center gap-4 py-20">
-        <AlertCircle className="h-10 w-10 text-destructive" />
-        <p className="text-destructive">{error}</p>
-        <Button variant="outline" onClick={reload}>
+        <AlertCircle className="h-10 w-10 text-muted-foreground" aria-hidden />
+        <p className="text-sm text-foreground">โหลดหมวดหมู่ไม่สำเร็จ</p>
+        <Button variant="outline" className="touch-target" onClick={() => refetch()}>
           ลองใหม่
         </Button>
       </div>
@@ -166,337 +138,162 @@ export function Categories() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-3">
-      {/* Header + Add form */}
+    <div className="mx-auto max-w-2xl space-y-4">
+      <h1 className="text-lg font-semibold text-foreground">หมวดหมู่</h1>
+
       <Card>
         <CardHeader>
-          <CardTitle className="font-display text-lg">หมวดหมู่</CardTitle>
+          <CardTitle className="text-base">เพิ่มหมวดหมู่</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <Input
-              placeholder="เพิ่มหมวดหมู่ใหม่..."
+              placeholder="เช่น อาหาร, ค่าไฟ, ใบเสร็จ"
               value={newName}
-              onChange={(e) => {
-                setNewName(e.target.value);
-                if (addTouched) setAddTouched(false);
-              }}
+              onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              aria-invalid={addTouched && !newName.trim()}
-              className="h-11 flex-1"
+              className="touch-target flex-1"
+              disabled={adding}
             />
             <Button
               onClick={handleAdd}
               disabled={!newName.trim() || adding}
-              className="h-11 px-5"
+              className="touch-target gap-1"
             >
-              <Plus className="mr-1 h-4 w-4" />
+              <Plus className="h-4 w-4" aria-hidden />
               {adding ? "กำลังเพิ่ม..." : "เพิ่ม"}
             </Button>
           </div>
-          {addTouched && !newName.trim() ? (
-            <p className="mt-2 text-xs text-destructive">กรุณากรอกชื่อหมวดหมู่</p>
+          {formError ? (
+            <p role="alert" className="mt-2 text-xs text-foreground">
+              {formError}
+            </p>
           ) : (
             <p className="mt-2 text-xs text-muted-foreground">
-              ตั้งชื่อสั้น ๆ ชัดเจน เช่น "อาหาร", "ค่าไฟ", "ใบเสร็จ"
+              ชื่อต้องไม่ซ้ำกับหมวดหมู่เดิม
             </p>
           )}
         </CardContent>
       </Card>
 
-      {/* Category list */}
       <Card>
-        <CardContent className="p-3 pt-2">
-          {loading ? (
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-4 rounded-xl border border-border bg-gradient-to-r p-4"
-                >
-                  <Skeleton className="h-10 w-10 shrink-0 rounded-lg" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-2 w-full max-w-[120px]" />
-                  </div>
-                  <Skeleton className="h-8 w-8 rounded-md" />
-                </div>
-              ))}
-            </div>
-          ) : categories.length === 0 ? (
-            <div className="flex flex-col items-center gap-4 py-16 text-center">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-muted/50">
-                <FolderOpen className="h-8 w-8 text-muted-foreground/50" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-medium text-foreground">ยังไม่มีหมวดหมู่</p>
-                <p className="text-sm text-muted-foreground">
-                  เพิ่มหมวดหมู่เพื่อจัดระเบียบเอกสารของคุณ
-                </p>
-              </div>
-            </div>
-          ) : isDesktop ? (
-            /* Desktop: Drag-to-reorder list */
-            <div className="space-y-1.5">
-              {categories.map((c, i) => {
-                const count = receiptCounts[c.name] || 0;
-                const pct = Math.round((count / maxCount) * 100);
-
-                return (
-                  <motion.div
-                    key={c.id}
-                    draggable
-                    onDragStart={() => setDragId(c.id)}
-                    onDragEnd={() => setDragId(null)}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.dataTransfer.dropEffect = "move";
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      // Handled by handleReorder below
-                    }}
-                    whileDrag={{ scale: 1.02, zIndex: 50 }}
-                    whileHover={reduce ? undefined : { rotate: -0.75, y: -2 }}
-                    className={`group relative flex items-center gap-4 rounded-xl border-l-4 bg-gradient-to-r p-3 transition-all ${getCatColor(i)} ${
-                      dragId === c.id ? "opacity-50" : ""
-                    }`}
-                  >
-                    {/* Drag handle */}
-                    <div className="cursor-grab text-muted-foreground/40 transition-colors hover:text-muted-foreground active:cursor-grabbing">
-                      <GripVertical className="h-5 w-5" />
-                    </div>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {editId === c.id ? (
-                        <div className="flex items-center gap-2">
-                          <Input
-                            value={editName}
-                            onChange={(e) => {
-                              setEditName(e.target.value);
-                              if (editTouched) setEditTouched(false);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleEdit(c.id);
-                              if (e.key === "Escape") setEditId(null);
-                            }}
-                            onBlur={() => setEditTouched(true)}
-                            aria-invalid={editTouched && !editName.trim()}
-                            autoFocus
-                            className="h-9 flex-1"
-                          />
-                          <Button
-                            size="sm"
-                            onClick={() => handleEdit(c.id)}
-                            disabled={!editName.trim() || editSaving}
-                          >
-                            {editSaving ? "..." : "บันทึก"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => setEditId(null)}
-                          >
-                            ยกเลิก
-                          </Button>
-                        </div>
-                      ) : (
-                        <>
-                          <p className="font-medium text-foreground truncate">
-                            {c.name}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 flex-1 max-w-[160px] overflow-hidden rounded-full bg-border">
-                              <motion.div
-                                className="h-full rounded-full bg-foreground/30"
-                                initial={{ width: 0 }}
-                                animate={{ width: `${pct}%` }}
-                                transition={{ duration: 0.5, ease: "easeOut" }}
-                              />
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {count} เอกสาร
-                            </span>
-                          </div>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Actions */}
-                    {editId !== c.id && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9 opacity-0 transition-opacity group-hover:opacity-100"
-                          >
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => startEdit(c.id, c.name)}
-                          >
-                            <Pencil className="mr-2 h-4 w-4" />
-                            แก้ไขชื่อ
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => setDeleteId(c.id)}
-                            disabled={count > 0}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            {count > 0 ? "มีเอกสารใช้งานอยู่" : "ลบ"}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </motion.div>
-                );
-              })}
+        <CardContent className="space-y-2 p-4">
+          {isLoading ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">กำลังโหลด...</p>
+          ) : !data || data.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <p className="font-medium text-foreground">ยังไม่มีหมวดหมู่</p>
+              <p className="text-sm text-muted-foreground">
+                เพิ่มหมวดหมู่เพื่อจัดระเบียบเอกสารของคุณ
+              </p>
             </div>
           ) : (
-            /* Mobile: Reorderable list with touch */
-            <Reorder.Group
-              axis="y"
-              values={categories}
-              onReorder={handleReorder}
-              className="space-y-1.5"
-            >
-              {categories.map((c, i) => {
-                const count = receiptCounts[c.name] || 0;
-                const pct = Math.round((count / maxCount) * 100);
-
-                return (
-                  <Reorder.Item
-                    key={c.id}
-                    value={c}
-                    className={`rounded-xl border-l-4 bg-gradient-to-r p-3 ${getCatColor(i)}`}
-                    dragListener={true}
-                  >
-                    <div className="flex items-center gap-3">
-                      {/* Drag handle */}
-                      <div className="touch-none text-muted-foreground/40">
-                        <GripVertical className="h-5 w-5" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 min-w-0 space-y-1">
-                        {editId === c.id ? (
-                          <div className="space-y-2">
-                            <Input
-                              value={editName}
-                              onChange={(e) => {
-                                setEditName(e.target.value);
-                                if (editTouched) setEditTouched(false);
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter") handleEdit(c.id);
-                                if (e.key === "Escape") setEditId(null);
-                              }}
-                              onBlur={() => setEditTouched(true)}
-                              aria-invalid={editTouched && !editName.trim()}
-                              autoFocus
-                              className="h-11"
-                            />
-                            <div className="flex gap-2">
-                              <Button
-                                size="sm"
-                                className="h-9 flex-1"
-                                onClick={() => handleEdit(c.id)}
-                                disabled={!editName.trim() || editSaving}
-                              >
-                                {editSaving ? "กำลังบันทึก..." : "บันทึก"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-9"
-                                onClick={() => setEditId(null)}
-                              >
-                                ยกเลิก
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <>
-                            <p className="font-medium text-foreground truncate">
-                              {c.name}
-                            </p>
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 flex-1 max-w-[160px] overflow-hidden rounded-full bg-border">
-                                <div
-                                  className="h-full rounded-full bg-foreground/30 transition-all duration-300"
-                                  style={{ width: `${pct}%` }}
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {count} เอกสาร
-                              </span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      {/* Mobile actions */}
-                      {editId !== c.id && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <TouchArea asChild>
-                              <Button variant="ghost" size="icon" className="h-11 w-11">
-                                <MoreHorizontal className="h-5 w-5" />
-                              </Button>
-                            </TouchArea>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={() => startEdit(c.id, c.name)}
-                            >
-                              <Pencil className="mr-2 h-4 w-4" />
-                              แก้ไขชื่อ
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => setDeleteId(c.id)}
-                              disabled={count > 0}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              {count > 0 ? "มีเอกสารใช้งานอยู่" : "ลบ"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+            data.map((c) => (
+              <div
+                key={c.id}
+                className="flex items-center gap-3 border border-border bg-background p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  {editId === c.id ? (
+                    <div className="space-y-2">
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleEdit(c.id);
+                          if (e.key === "Escape") setEditId(null);
+                        }}
+                        autoFocus
+                        className="touch-target"
+                        disabled={editSaving}
+                      />
+                      {editError && (
+                        <p role="alert" className="text-xs text-foreground">
+                          {editError}
+                        </p>
                       )}
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="touch-target flex-1"
+                          onClick={() => handleEdit(c.id)}
+                          disabled={!editName.trim() || editSaving}
+                        >
+                          {editSaving ? "กำลังบันทึก..." : "บันทึก"}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="touch-target"
+                          onClick={() => setEditId(null)}
+                          disabled={editSaving}
+                        >
+                          ยกเลิก
+                        </Button>
+                      </div>
                     </div>
-                  </Reorder.Item>
-                );
-              })}
-            </Reorder.Group>
+                  ) : (
+                    <p className="truncate font-medium text-foreground">{c.name}</p>
+                  )}
+                </div>
+                {editId !== c.id && (
+                  <>
+                    <Badge variant="secondary">{c.count} เอกสาร</Badge>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="touch-target shrink-0"
+                      onClick={() => startEdit(c.id, c.name)}
+                      aria-label={`แก้ไข ${c.name}`}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="touch-target shrink-0"
+                      onClick={() => {
+                        setDeleteId(c.id);
+                        setDeleteError(null);
+                      }}
+                      aria-label={`ลบ ${c.name}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </>
+                )}
+              </div>
+            ))
           )}
         </CardContent>
       </Card>
 
-      {/* Delete confirmation dialog */}
       <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>ลบหมวดหมู่</DialogTitle>
             <DialogDescription>
-              {deleteId && (
-                <>
-                  ต้องการลบ "<strong>{categories.find((c) => c.id === deleteId)?.name}</strong>"?
-                  การกระทำนี้ไม่สามารถย้อนกลับได้
-                </>
-              )}
+              ต้องการลบ “{data?.find((c) => c.id === deleteId)?.name}” หรือไม่?
+              หากยังมีเอกสารใช้งานอยู่จะลบไม่ได้
             </DialogDescription>
           </DialogHeader>
+          {deleteError && (
+            <p role="alert" className="text-sm text-foreground">
+              {deleteError}
+            </p>
+          )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteId(null)}>
+            <Button
+              variant="outline"
+              className="touch-target"
+              onClick={() => setDeleteId(null)}
+              disabled={deleting}
+            >
               ยกเลิก
             </Button>
             <Button
               variant="destructive"
+              className="touch-target"
               onClick={handleDelete}
               disabled={deleting}
             >
