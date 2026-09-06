@@ -11,9 +11,9 @@ Use `recall` to retrieve context, `remember` to save new info.
 - Tags: `paper`, `project`
 
 ## Stack
-- Frontend: Vite 8 + React 19 + TypeScript 7 (strict), react-router v7, framer-motion, lucide-react, sonner (toasts)
+- Frontend: Vite 8 + React 19 + TypeScript 7 (strict), react-router v7, **TanStack Query 5 (+persist to IndexedDB), TanStack Virtual, vite-plugin-pwa (injectManifest)**, lucide-react, sonner (toasts). **No framer-motion** (CSS transitions only).
 - Backend: Cloudflare Pages Functions (Node-compat), Cloudflare D1 (`receipts_db`) + R2 (`BUCKET`)
-- Auth: **Clerk** (`@clerk/backend` + `@clerk/clerk-react`) — NOT Better Auth (see Gotchas)
+- Auth: **Clerk** (`@clerk/backend` + `@clerk/clerk-react`) — NOT Better Auth (see Gotchas). Edge: `functions/api/_lib/auth.js` verifies session JWT locally against cached JWKS + 5-min access cache (replaces 2 blocking Clerk API calls/request, same fail-closed 401).
 - UI: shadcn/ui (radix-nova style) + Tailwind 4 (`@tailwindcss/vite`)
 - Build: Vite with manual chunking; build output = `./public`
 
@@ -40,21 +40,16 @@ Use `recall` to retrieve context, `remember` to save new info.
 
 ## Architecture / Data Flow
 - **Backend (Cloudflare Pages Functions)** under `functions/api/`. Each file exports `onRequestGet/Post/Put/Delete`:
-  - `receipts.js` — GET list; query params `category`, `q` (filename/notes LIKE). No owner filter param — owner is filtered client-side.
-  - `receipts/[id].js` — PUT (partial update: filename/category/notes/owner), DELETE (removes from R2 + D1).
-  - `file/[id].js` — GET raw file bytes from R2 (cache 1h).
-  - `upload.js` — POST multipart; validates type (jpeg/png/webp/pdf) and size; verifies category exists by name; writes R2 keyed by `crypto.randomUUID()`, inserts D1 row. Returns 201.
-  - `categories.js` — GET (ORDER BY sort_order, created_at), POST (unique name, 409 on dup).
-  - `categories/[id].js` — PUT (rename, 409 on dup), DELETE (409 if receipts still reference category name).
-  - `categories/reorder.js` — POST `{ ordered_ids: string[] }`; batch-updates sort_order via `DB.batch`.
-  - `categories/[id]/subcategories.js` — references a `subcategories` table that **no longer exists** (dropped). Dead/misleading code.
-  - `tags/` and `receipts/[id]/tags/` — **empty directories**, feature not implemented.
+  - **v2** (`functions/api/v2/`, current): `receipts.js` — GET cursor-paginated list (`cursor/limit/category/owner/q`, FTS5 search, `{items, nextCursor}`); `receipts/[id].js` — GET one, single-statement PUT, DELETE (removes orig+thumb from R2); `files/[id].js` — `?variant=thumb|orig`, immutable 1y thumbs, ETag/304 + Range on originals; `upload.js` — POST multipart (`file` + client `thumb`), parallel R2 puts, single D1 insert, 201; `categories.js` — GET with live counts (one query).
+  - **v1** (legacy, kept for rollback): `receipts.js` — GET full list (no pagination); `receipts/[id].js`; `file/[id].js`; `upload.js`; `categories*.js`. The v2 client never calls v1 except categories CRUD (POST/PUT/DELETE still on `/api/categories*`).
+  - `migrations/0002_v2.sql` — `thumb_key` column, `receipts_fts` (FTS5 + sync triggers), cursor indexes. Applied to remote D1 2026-09-06.
+  - `upload.js` — (v1) POST multipart; `categories.js` — (v1) GET/POST; `categories/[id].js`, `categories/reorder.js`, `categories/[id]/subcategories.js` (dead code — table dropped), `tags/` + `receipts/[id]/tags/` (empty, not implemented).
 - **Frontend** (`src/`):
-  - `App.tsx` — theming + Clerk + router + lazy routes. Layout throws once, no nested route config beyond that.
-  - `lib/api.ts` — thin fetch wrapper over `/api` (JSON, throws Error with server `error` msg). `uploadReceiptWithProgress` uses XHR for progress.
-  - `hooks/use-receipts.ts`, `use-categories.ts` — hand-rolled state management (no TanStack Query). `useCategories` does optimistic reorder.
-  - `lib/upload-utils.ts` — client-side file validation + image compression (canvas → webp, max 2048px, q0.8).
-  - Routes: `/` Dashboard, `/receipts`, `/receipts/:id`, `/upload`, `/categories`, `/settings`.
+  - `App.tsx` — theming + Clerk + QueryProvider + router + lazy routes. Routes: `/` Home (capture-first), `/lib` Library, `/r/:id` Detail, `/capture`, `/categories`, `/settings`. Old `/dashboard`→`/`, `/receipts`→`/lib`, `/receipts/:id`→`/r/:id`, `/upload`→`/capture` redirects kept.
+  - `lib/api-v2.ts` — v2 client: cursor list, single get/update/delete, upload with client thumbnail + XHR progress, IndexedDB offline outbox (`enqueueUpload`/`uploadQueuedItem`). Thumbnails: 320px webp via canvas/OffscreenCanvas.
+  - `lib/query.tsx` — QueryClient (stale 60s, persist 7d in IDB) + `useReceiptsInfinite`/`useReceipt`/`useCategories`/mutations. `lib/outbox.ts` — `useOutboxDrain()` (online event + SW message + poll).
+  - `sw.ts` — injectManifest SW: precached shell, CacheFirst immutable thumbs, NetworkFirst orig + read APIs, Background Sync `paper-uploads` drains outbox.
+  - `hooks/` and hand-rolled fetch are gone. No full-table fetch anywhere: list is cursor-paginated server-side, detail fetches one row.
   - Responsive shell: `Layout` switches Sidebar (desktop ≥1024px) vs BottomNav (mobile) via `useMediaQuery`. Mobile uses `--spacing-safe-bottom` / safe-area insets (viewport-fit=cover).
 - **`owner` field** = free-text "Owner / Folder" label on a receipt (set at upload, edited in detail, filtered in receipts list), NOT tied to the signed-in user.
 
