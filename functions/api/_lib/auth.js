@@ -25,10 +25,16 @@ function b64urlToBytes(s) {
 }
 
 function frontendApiHost(publishableKey) {
-  // Clerk publishable keys end with base64(<frontend-api hostname>).
-  const tail = (publishableKey || "").split("_").pop() || "";
+  // Clerk publishable keys end with UNPADDED base64(<frontend-api hostname>).
+  // atob() without restoring padding silently drops the tail byte
+  // (e.g. "clerk.mcky.spac"), so pad first.
+  let tail = (publishableKey || "").split("_").pop() || "";
+  tail = tail.replace(/-/g, "+").replace(/_/g, "/");
+  while (tail.length % 4) tail += "=";
   try {
-    return atob(tail);
+    const host = atob(tail);
+    // Clerk suffixes decode with a trailing "$" sentinel — strip it.
+    return host.replace(/\$$/, "") || null;
   } catch {
     return null;
   }
@@ -102,6 +108,13 @@ async function getUserApps(userId, env) {
 }
 
 export async function fastAuth(request, env) {
+  return doFastAuth(request, env);
+}
+
+// Exported for tests.
+export { frontendApiHost };
+
+async function doFastAuth(request, env) {
   try {
     const h = request.headers.get("authorization") || "";
     const m = h.match(/^Bearer (.+)$/);
