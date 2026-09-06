@@ -107,19 +107,39 @@ async function getUserApps(userId, env) {
   return apps;
 }
 
+function bearerToken(request) {
+  const h = request.headers.get("authorization") || "";
+  const m = h.match(/^Bearer (.+)$/);
+  if (m) return m[1].trim();
+  // SPA fetches (and SW background-sync uploads) carry the Clerk session
+  // as the __session cookie — same token the old SDK middleware read.
+  const cookies = request.headers.get("cookie") || "";
+  for (const part of cookies.split(";")) {
+    const i = part.indexOf("=");
+    if (i < 0) continue;
+    if (part.slice(0, i).trim() === "__session") {
+      try {
+        return decodeURIComponent(part.slice(i + 1).trim());
+      } catch {
+        return part.slice(i + 1).trim();
+      }
+    }
+  }
+  return null;
+}
+
 export async function fastAuth(request, env) {
   return doFastAuth(request, env);
 }
 
 // Exported for tests.
-export { frontendApiHost };
+export { frontendApiHost, bearerToken };
 
 async function doFastAuth(request, env) {
   try {
-    const h = request.headers.get("authorization") || "";
-    const m = h.match(/^Bearer (.+)$/);
-    if (!m) return { ok: false };
-    const payload = await verifySessionToken(m[1].trim(), env);
+    const token = bearerToken(request);
+    if (!token) return { ok: false };
+    const payload = await verifySessionToken(token, env);
     const userId = payload.sub;
     if (!userId) return { ok: false };
     const apps = await getUserApps(userId, env);
