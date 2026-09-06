@@ -54,9 +54,10 @@ Use `recall` to retrieve context, `remember` to save new info.
 - **`owner` field** = free-text "Owner / Folder" label on a receipt (set at upload, edited in detail, filtered in receipts list), NOT tied to the signed-in user.
 
 ## Design System
-- **Implemented theme: MONO** (commit `59e385a`) — 100% monochrome (black on white / white on black), 0px radius, sharp edges. Tokens live ONLY in `src/index.css` (`:root` light + `.dark`) — single source of truth.
+- **Implemented theme: SOFT / "Variant D"** (commit `935ccf5`, chosen in design gallery `paper/paper-gallery-v3`) — warm-neutral gallery look: white base, soft 14px radii, gentle borders/shadows, rounded everything (dark mode: near-black base). Tokens live ONLY in `src/index.css` (`:root` light + `.dark`) — single source of truth. Motion utilities: `.panel-in` / `.overlay-in` / `.zoom-in` (slide-over + lightbox).
+- **Variant D layout**: timeline list (`src/components/timeline.tsx` — month groups, left time rail with dots, 76px rows, 56px rounded thumbs) shared by Home + Library; slide-over detail (`src/components/receipt-panel.tsx`, right, 86%→max-w-md) with tap-to-lightbox image (`src/components/lightbox.tsx`); formatting helpers in `src/lib/format.ts`. Detail route `/r/:id` is the full page (PDF iframe, lightbox, edit/delete).
 - Fonts: **Inter** (sans + display) + **JetBrains Mono**, loaded via `@fontsource` in `main.tsx`; Thai glyphs fall back to Noto Sans Thai Variable. No bunny.net / external font links.
-- `design-system/paper/MASTER.md` ("Lovable Warm", cream `#f7f4ed`), `Design.md` (Expo) and `design-revamp-spec.md` are **historical** — superseded by MONO. Their "never #fff/#000" rules no longer apply.
+- `design-system/paper/MASTER.md` ("Lovable Warm", cream `#f7f4ed`), `Design.md` (Expo) and `design-revamp-spec.md` are **historical** — superseded. MONO (commit `59e385a`) was itself superseded by SOFT on 2026-09-06. Their "never #fff/#000" rules no longer apply.
 - 44px touch targets (`touch-target` / `touch-target-full` utilities).
 - shadcn components under `src/components/ui/` (button, card, dialog, dropdown-menu, input, label, progress, select, separator, skeleton, table, tooltip, badge). There's also `claude-callout`, `claude-note`, `claude-effects.css`, `touch-area`.
 
