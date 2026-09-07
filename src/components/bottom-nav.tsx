@@ -11,13 +11,13 @@ interface NavItemDef {
 }
 
 const leftItems: NavItemDef[] = [
-  { to: "/", label: "หน่าแรก", icon: Home },
+  { to: "/", label: "หน้าแรก", icon: Home },
   { to: "/lib", label: "เอกสาร", icon: Images },
 ];
 
 const rightItems: NavItemDef[] = [
   { to: "/categories", label: "หมวดหมู่", icon: Tags },
-  { to: "/settings", label: "ตังค่าน", icon: Settings },
+  { to: "/settings", label: "ตั้งค่า", icon: Settings },
 ];
 
 function NavItem({ item, isActive }: { item: NavItemDef; isActive: boolean }) {
@@ -66,7 +66,7 @@ export function BottomNav() {
 
         <NavLink
           to="/capture"
-          aria-label="ถ่่าย / อปัปโหลดเอกสาร"
+          aria-label="ถ่าย / อัปโหลดเอกสาร"
           className="absolute left-1/2 -top-4 flex h-12 w-12 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md ring-4 ring-background transition-transform active:scale-90"
         >
           <Camera className="h-6 w-6" />

@@ -43,14 +43,14 @@ export function Home() {
       </header>
 
       <main className="space-y-6 px-1 py-4">
-        <section aria-label="ถ่่ายเอกสารใหม่">
+        <section aria-label="ถ่ายเอกสารใหม่">
           <Link
             to="/capture"
             className="flex min-h-[120px] w-full flex-col items-center justify-center gap-2 rounded-2xl bg-primary px-4 py-8 text-primary-foreground shadow-md transition-transform active:scale-[0.99]"
           >
             <Camera className="h-9 w-9" />
-            <span className="text-base font-bold">ถ่่าย / อปัปโหลดเอกสาร</span>
-            <span className="text-sm opacity-70">แตะเพื่อเรื่ีมสแกนใบเสร็จ</span>
+            <span className="text-base font-bold">ถ่าย / อัปโหลดเอกสาร</span>
+            <span className="text-sm opacity-70">แตะเพื่อเริ่มสแกนใบเสร็จ</span>
           </Link>
           {pending > 0 && (
             <Link
@@ -67,7 +67,7 @@ export function Home() {
           <div className="mb-2 flex min-h-[44px] items-center justify-between px-1">
             <h2 className="text-base font-bold">ล่าสุด</h2>
             <Link to="/lib" className="inline-flex min-h-[44px] items-center text-sm font-semibold underline">
-              ดูท้่งหมด
+              ดูทั้งหมด
             </Link>
           </div>
 
@@ -93,7 +93,7 @@ export function Home() {
 
           {!isLoading && !isError && items.length === 0 && (
             <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-              ยังไม่มีเอกสาร แตะปุ่่มด้านบนเพื่่่มใบเสร็จแรก
+              ยังไม่มีเอกสาร แตะปุ่มด้านบนเพิ่มใบเสร็จแรก
             </p>
           )}
 
@@ -107,7 +107,7 @@ export function Home() {
                   disabled={isFetchingNextPage}
                   className="mt-3 min-h-[44px] w-full"
                 >
-                  {isFetchingNextPage ? "กำล่งโหลด…" : "โหลดเพิ่่ม"}
+                  {isFetchingNextPage ? "กำลังโหลด…" : "โหลดเพิ่ม"}
                 </Button>
               )}
             </>

@@ -82,7 +82,7 @@ export function ReceiptPanel({ receipt, onClose }: ReceiptPanelProps) {
         onSuccess: (row) => {
           setR(row);
           setEditOpen(false);
-          toast.success("บันทึกล่ะ");
+          toast.success("บันทึกแล้ว");
         },
         onError: () => toast.error("บันทึกไม่สำเร็จ กรุณาลองใหม่"),
       }
@@ -92,7 +92,7 @@ export function ReceiptPanel({ receipt, onClose }: ReceiptPanelProps) {
   function handleDelete() {
     del.mutate(r.id, {
       onSuccess: () => {
-        toast.success("ลบเอกสารล่ะ");
+        toast.success("ลบเอกสารแล้ว");
         onClose();
       },
       onError: () => toast.error("ลบไม่สำเร็จ กรุณาลองใหม่"),

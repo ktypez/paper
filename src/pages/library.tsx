@@ -56,7 +56,7 @@ export function Library() {
       <header className="sticky top-12 z-10 -mx-3 bg-background/95 px-3 pt-1 backdrop-blur-sm lg:-mx-6 lg:px-6">
         <div className="flex min-h-[44px] items-center justify-between">
           <div className="flex items-baseline gap-2">
-            <h1 className="text-lg font-bold">เอกสารทั้่งหมด</h1>
+            <h1 className="text-lg font-bold">เอกสารทั้งหมด</h1>
             {!isLoading && (
               <span className="text-xs text-muted-foreground">{items.length} รายการ</span>
             )}
@@ -70,7 +70,7 @@ export function Library() {
                 setSearchOpen(true);
               }
             }}
-            aria-label="ค้้นหาเอกสาร"
+            aria-label="ค้นหาเอกสาร"
             aria-expanded={searchOpen}
             className="inline-flex h-11 w-11 items-center justify-center rounded-full transition-colors active:bg-muted"
           >
@@ -83,8 +83,8 @@ export function Library() {
             ref={searchRef}
             value={qInput}
             onChange={(e) => setQInput(e.target.value)}
-            placeholder="ค้้นหาชื่อไฟล / โน้ต / เจ้้้าของ…"
-            aria-label="ค้้นหาเอกสาร"
+            placeholder="ค้นหาชื่อไฟล์ / โน้ต / เจ้าของ…"
+            aria-label="ค้นหาเอกสาร"
             className="mt-1 min-h-[44px] w-full rounded-xl border border-border bg-muted/60 px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:ring-2 focus:ring-ring/30"
           />
         )}
@@ -129,7 +129,7 @@ export function Library() {
 
         {!isLoading && !isError && items.length === 0 && (
           <p className="rounded-2xl border border-border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
-            {filtering ? "ไม่พบเอกสารที่ตรงเงื่อนไข" : "ยังไม่ม่ีเอกสารในคลัง"}
+            {filtering ? "ไม่พบเอกสารที่ตรงเงื่อนไข" : "ยังไม่มีเอกสารในคลัง"}
           </p>
         )}
 

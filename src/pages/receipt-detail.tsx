@@ -128,7 +128,7 @@ export function ReceiptDetail() {
                 <button
                   type="button"
                   onClick={() => setLightbox(origUrl(r))}
-                  aria-label="เปิดรปูเต็มจอ"
+                  aria-label="เปิดรูปเต็มจอ"
                   className="group relative block w-full"
                 >
                   <img

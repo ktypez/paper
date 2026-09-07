@@ -28,7 +28,7 @@ export function Lightbox({ src, alt, onClose }: LightboxProps) {
       className="overlay-in fixed inset-0 z-[70] flex items-center justify-center bg-black/95"
       role="dialog"
       aria-modal="true"
-      aria-label="ดูลักษณะภาพเต็มจอ"
+      aria-label="ดูภาพเต็มจอ"
       onClick={onClose}
     >
       <button
@@ -47,7 +47,7 @@ export function Lightbox({ src, alt, onClose }: LightboxProps) {
         className="zoom-in max-h-[88dvh] max-w-full select-none object-contain"
       />
       <p className="pointer-events-none absolute bottom-4 left-0 right-0 text-center text-xs text-white/50">
-        แตะเพื่อบิด
+        แตะเพื่อปิด
       </p>
     </div>
   );
