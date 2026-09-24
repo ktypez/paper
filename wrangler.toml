@@ -2,6 +2,7 @@ name = "receipts-dms"
 compatibility_date = "2026-07-09"
 compatibility_flags = ["nodejs_als", "nodejs_compat"]
 pages_build_output_dir = "./public"
+# The API host guard blocks preview requests until separate preview bindings exist.
 
 [[d1_databases]]
 binding = "receipts_db"

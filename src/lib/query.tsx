@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "@clerk/clerk-react";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { ApiError } from "./api";
 import {
   createCategory,
   deleteCategory,
@@ -26,6 +27,14 @@ import type { CategoryRecord, DocumentFilters, UploadInput } from "./types";
 const AuthTokenContext = createContext<() => Promise<string>>(() => {
   throw new Error("AuthTokenProvider is missing");
 });
+
+function shouldRetry(failureCount: number, error: unknown) {
+  if (failureCount >= 1) return false;
+  if (error instanceof ApiError) {
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  }
+  return true;
+}
 
 function AuthTokenProvider({ children }: { children: ReactNode }) {
   const { getToken } = useAuth();
@@ -51,7 +60,7 @@ export function QueryProvider({ children }: { children: ReactNode }) {
           queries: {
             staleTime: 45_000,
             gcTime: 15 * 60_000,
-            retry: 1,
+            retry: shouldRetry,
             refetchOnWindowFocus: false,
           },
           mutations: {
@@ -140,9 +149,9 @@ export function useUpdateDocument() {
       const token = await readToken();
       return updateDocument(token, id, patch);
     },
-    onSuccess: async (document) => {
+    onSuccess: (document) => {
       client.setQueryData(documentKeys.detail(document.id), document);
-      await invalidate();
+      void invalidate();
     },
   });
 }
@@ -153,22 +162,26 @@ export function useDeleteDocument() {
   const invalidate = useInvalidateDocumentData();
   return useMutation({
     mutationFn: async (id: string) => deleteDocument(await readToken(), id),
-    onSuccess: async (_data, id) => {
+    onSuccess: (_data, id) => {
       client.removeQueries({ queryKey: documentKeys.detail(id), exact: true });
-      await invalidate();
+      void invalidate();
     },
   });
 }
 
 export function useUploadDocument() {
   const readToken = useAuthToken();
+  const client = useQueryClient();
   const invalidate = useInvalidateDocumentData();
   return useMutation({
     mutationFn: async (input: Omit<UploadInput, "token">) => {
       const token = await readToken();
       return uploadDocument({ ...input, token });
     },
-    onSuccess: invalidate,
+    onSuccess: (document) => {
+      client.setQueryData(documentKeys.detail(document.id), document);
+      void invalidate();
+    },
   });
 }
 
@@ -177,7 +190,9 @@ export function useCreateCategory() {
   const invalidate = useInvalidateDocumentData();
   return useMutation({
     mutationFn: async (name: string) => createCategory(await readToken(), name),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate();
+    },
   });
 }
 
@@ -188,11 +203,11 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: async ({ id, name }: { id: string; name: string }) =>
       updateCategory(await readToken(), id, name),
-    onSuccess: async (category) => {
+    onSuccess: (category) => {
       client.setQueryData<CategoryRecord[]>(categoryKeys.all, (current) =>
         current?.map((item) => (item.id === category.id ? category : item)),
       );
-      await invalidate();
+      void invalidate();
     },
   });
 }
@@ -202,14 +217,15 @@ export function useDeleteCategory() {
   const invalidate = useInvalidateDocumentData();
   return useMutation({
     mutationFn: async (id: string) => deleteCategory(await readToken(), id),
-    onSuccess: invalidate,
+    onSuccess: () => {
+      void invalidate();
+    },
   });
 }
 
 export function useReorderCategories() {
   const readToken = useAuthToken();
   const client = useQueryClient();
-  const invalidate = useInvalidateDocumentData();
   return useMutation({
     mutationFn: async (ids: string[]) => reorderCategories(await readToken(), ids),
     onMutate: async (ids) => {
@@ -223,6 +239,8 @@ export function useReorderCategories() {
     onError: (_error, _ids, context) => {
       if (context?.previous) client.setQueryData(categoryKeys.all, context.previous);
     },
-    onSettled: invalidate,
+    onSettled: () => {
+      void client.invalidateQueries({ queryKey: categoryKeys.all });
+    },
   });
 }

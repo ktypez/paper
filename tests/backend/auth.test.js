@@ -24,7 +24,7 @@ test("concurrent auth requests share JWKS and access lookups", async () => {
   const jwk = { ...publicKey.export({ format: "jwk" }), kid: "test-key", alg: "RS256", use: "sig" };
   const encode = (value) => Buffer.from(value).toString("base64url");
   const header = encode(JSON.stringify({ alg: "RS256", kid: "test-key", typ: "JWT" }));
-  const payload = encode(JSON.stringify({ sub: "user-concurrent", exp: Math.floor(Date.now() / 1000) + 3600 }));
+  const payload = encode(JSON.stringify({ sub: "user-concurrent", iss: "https://clerk.test", azp: "https://paper.test", exp: Math.floor(Date.now() / 1000) + 3600 }));
   const unsigned = `${header}.${payload}`;
   const token = `${unsigned}.${sign("RSA-SHA256", Buffer.from(unsigned), privateKey).toString("base64url")}`;
   let jwksCalls = 0;
@@ -62,6 +62,17 @@ test("concurrent auth requests share JWKS and access lookups", async () => {
     ]);
     assert.equal(jwksCalls, 1);
     assert.equal(userCalls, 1);
+
+    const unknownHeader = encode(JSON.stringify({ alg: "RS256", kid: "unknown-key", typ: "JWT" }));
+    const unknownPayload = encode(JSON.stringify({ sub: "user-unknown", iss: "https://clerk.test", azp: "https://paper.test", exp: Math.floor(Date.now() / 1000) + 3600 }));
+    const unknownUnsigned = `${unknownHeader}.${unknownPayload}`;
+    const unknownToken = `${unknownUnsigned}.${sign("RSA-SHA256", Buffer.from(unknownUnsigned), privateKey).toString("base64url")}`;
+    const unknownResult = await fastAuth(
+      new Request("https://paper.test/api/documents", { headers: { Authorization: `Bearer ${unknownToken}` } }),
+      env,
+    );
+    assert.deepEqual(unknownResult, { ok: false });
+    assert.equal(jwksCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
   }

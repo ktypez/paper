@@ -9,6 +9,9 @@ import type { DocumentRecord } from "@/lib/types";
 export function DocumentViewer({ document }: { document: DocumentRecord }) {
   const [imageFailed, setImageFailed] = useState(false);
   const originalUrl = documentFileUrl(document.id, "original");
+  const imageUrl = document.hasPreview && !imageFailed
+    ? documentFileUrl(document.id, "preview")
+    : originalUrl;
 
   useEffect(() => setImageFailed(false), [document.id]);
 
@@ -16,7 +19,7 @@ export function DocumentViewer({ document }: { document: DocumentRecord }) {
     return (
       <div className="grid min-h-[52dvh] place-items-center overflow-hidden rounded-sheet border border-line bg-raised p-2 sm:min-h-[65dvh] sm:p-4">
         <img
-          src={originalUrl}
+          src={imageUrl}
           alt={document.filename}
           className="max-h-[72dvh] w-auto max-w-full object-contain"
           decoding="async"
@@ -54,7 +57,9 @@ export function DocumentViewer({ document }: { document: DocumentRecord }) {
     <div className="grid min-h-72 place-items-center rounded-sheet border border-line bg-raised p-8 text-center">
       <div>
         <Download aria-hidden="true" className="mx-auto text-muted" size={30} strokeWidth={1.5} />
-        <p className="mt-4 text-sm text-muted">เปิดไฟล์ต้นฉบับเพื่อดูเอกสาร</p>
+        <p className="mt-4 text-sm text-muted">
+          {document.hasPreview && imageFailed ? "เปิดภาพตัวอย่างไม่ได้" : "เปิดไฟล์ต้นฉบับเพื่อดูเอกสาร"}
+        </p>
         <Button asChild className="mt-5">
           <a href={originalUrl} target="_blank" rel="noreferrer">
             เปิดไฟล์

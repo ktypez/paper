@@ -45,15 +45,16 @@ function CategoryRow({
   index,
   total,
   onMove,
+  reorderPending,
 }: {
   category: CategoryRecord;
   index: number;
   total: number;
   onMove: (id: string, direction: -1 | 1) => void;
+  reorderPending: boolean;
 }) {
   const update = useUpdateCategory();
   const remove = useDeleteCategory();
-  const reorder = useReorderCategories();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(category.name);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -83,13 +84,13 @@ function CategoryRow({
           <SortButton
             label={`ย้าย ${category.name} ขึ้น`}
             direction="up"
-            disabled={index === 0 || reorder.isPending}
+            disabled={index === 0 || reorderPending}
             onClick={() => onMove(category.id, -1)}
           />
           <SortButton
             label={`ย้าย ${category.name} ลง`}
             direction="down"
-            disabled={index === total - 1 || reorder.isPending}
+            disabled={index === total - 1 || reorderPending}
             onClick={() => onMove(category.id, 1)}
           />
         </div>
@@ -258,6 +259,7 @@ export function CategoriesPage() {
               index={index}
               total={sorted.length}
               onMove={move}
+              reorderPending={reorder.isPending}
             />
           ))}
         </ul>

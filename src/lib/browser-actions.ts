@@ -1,10 +1,9 @@
-import { authenticatedFileRequest, documentFileUrl } from "./api";
+import { authenticatedFileBlob, documentFileUrl } from "./api";
 import type { DocumentRecord } from "./types";
 
 async function documentFile(document: DocumentRecord, token: string) {
-  const response = await authenticatedFileRequest(documentFileUrl(document.id, "original"), token);
-  if (!response.ok) throw new Error("ดาวน์โหลดไฟล์ไม่สำเร็จ");
-  return new File([await response.blob()], document.filename, {
+  const blob = await authenticatedFileBlob(documentFileUrl(document.id, "original"), token);
+  return new File([blob], document.filename, {
     type: document.contentType,
     lastModified: new Date(document.uploadedAt).getTime(),
   });

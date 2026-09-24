@@ -1,5 +1,11 @@
 import { errorResponse, RequestError } from "../../_lib/http.js";
-import { inlineDisposition, parseRange, requiredText } from "../../_lib/validation.js";
+import {
+  inlineDisposition,
+  parseRange,
+  requiredText,
+  safeFileContentType,
+  isPendingUpload,
+} from "../../_lib/validation.js";
 
 export async function onRequestGet(context) {
   try {
@@ -17,6 +23,7 @@ export async function onRequestGet(context) {
       .bind(id)
       .first();
     if (!row) throw new RequestError(404, "document_not_found", "ไม่พบเอกสาร");
+    if (isPendingUpload(row)) throw new RequestError(409, "upload_in_progress", "อัปโหลดกำลังดำเนินการ");
 
     const rangeHeader = context.request.headers.get("range");
     const range = rangeHeader ? parseRange(rangeHeader) : undefined;
@@ -50,11 +57,13 @@ async function getObject(bucket, key, range) {
 
 function fileResponse(context, object, filename, fallbackType, preview, rangeHeader) {
   const etag = String(object.etag ?? "").replace(/^"|"$/g, "");
+  const contentType = safeFileContentType(fallbackType);
+  const disposition = contentType === "application/octet-stream" ? "attachment" : "inline";
   const headers = {
-    "Content-Type": object.httpMetadata?.contentType ?? fallbackType ?? "application/octet-stream",
+    "Content-Type": contentType,
     "Accept-Ranges": "bytes",
     "Cache-Control": preview ? "private, max-age=31536000, immutable" : "private, max-age=3600",
-    "Content-Disposition": inlineDisposition(filename),
+    "Content-Disposition": inlineDisposition(filename).replace(/^inline/, disposition),
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Content-Security-Policy": "frame-ancestors 'self'",

@@ -24,10 +24,15 @@ export function validateUploadFile(file: File) {
   return null;
 }
 
-export async function createImageThumbnail(file: File) {
+export async function createImageThumbnail(file: File, signal?: AbortSignal) {
   if (!looksLikeImage(file)) return undefined;
+  if (signal?.aborted) throw new DOMException("ยกเลิกการเตรียมไฟล์", "AbortError");
 
   const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+  if (signal?.aborted) {
+    bitmap.close();
+    throw new DOMException("ยกเลิกการเตรียมไฟล์", "AbortError");
+  }
   const longestSide = Math.max(bitmap.width, bitmap.height);
   const scale = Math.min(1, 320 / longestSide);
   const width = Math.max(1, Math.round(bitmap.width * scale));

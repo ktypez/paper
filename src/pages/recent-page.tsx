@@ -1,4 +1,5 @@
 import { Archive, FilePlus2 } from "lucide-react";
+import { useCallback, useMemo } from "react";
 import { Link } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DocumentList } from "@/components/document-list";
@@ -24,8 +25,9 @@ function ListSkeleton() {
 
 export function RecentPage() {
   const query = useDocuments({}, 12);
-  const documents = query.data?.pages.flatMap((page) => page.items) ?? [];
+  const documents = useMemo(() => query.data?.pages.flatMap((page) => page.items) ?? [], [query.data?.pages]);
   const total = query.data?.pages[0]?.total;
+  const loadMore = useCallback(() => void query.fetchNextPage(), [query.fetchNextPage]);
 
   return (
     <div className="grid gap-6">
@@ -61,7 +63,7 @@ export function RecentPage() {
           documents={documents}
           hasNextPage={query.hasNextPage}
           isFetchingNextPage={query.isFetchingNextPage}
-          onLoadMore={() => void query.fetchNextPage()}
+          onLoadMore={loadMore}
         />
       ) : null}
     </div>

@@ -1,6 +1,6 @@
-import { ArrowLeft, Download, Expand, Pencil, Share2, Trash2 } from "lucide-react";
+import { ArrowLeft, Download, Expand, LoaderCircle, Pencil, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useLocation, useNavigate, useParams } from "react-router";
 import { useAuth } from "@clerk/clerk-react";
 import { toast } from "sonner";
 import { DocumentEditor } from "@/components/document-editor";
@@ -28,6 +28,7 @@ function DetailSkeleton() {
 export function DocumentPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { getToken } = useAuth();
   const documentQuery = useDocument(id);
   const categories = useCategories();
@@ -36,12 +37,32 @@ export function DocumentPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [fileAction, setFileAction] = useState<"download" | "share" | null>(null);
   const document = documentQuery.data;
+  const stateFrom = (location.state as { from?: unknown } | null)?.from;
+  const returnTo =
+    typeof stateFrom === "string" && stateFrom.startsWith("/") && !stateFrom.startsWith("//")
+      ? stateFrom
+      : "/library";
 
   async function withToken(action: (token: string) => Promise<void>) {
     const token = await getToken();
     if (!token) throw new Error("เซสชันหมดอายุ กรุณาเข้าสู่ระบบอีกครั้ง");
     await action(token);
+  }
+
+  async function runFileAction(kind: "download" | "share") {
+    if (fileAction) return;
+    setFileAction(kind);
+    try {
+      await withToken((token) =>
+        kind === "download" ? downloadDocument(document!, token) : shareDocument(document!, token),
+      );
+    } catch (cause) {
+      toast.error(cause instanceof Error ? cause.message : "ทำรายการกับไฟล์ไม่สำเร็จ");
+    } finally {
+      setFileAction(null);
+    }
   }
 
   if (documentQuery.isPending) return <DetailSkeleton />;
@@ -67,7 +88,7 @@ export function DocumentPage() {
   return (
     <div className="grid gap-6">
       <Button asChild variant="ghost" size="small" className="w-fit -ml-3">
-        <Link to="/library">
+        <Link to={returnTo}>
           <ArrowLeft aria-hidden="true" size={17} strokeWidth={1.8} />
           กลับคลังเอกสาร
         </Link>
@@ -86,30 +107,33 @@ export function DocumentPage() {
             ) : null}
             <Button
               variant="secondary"
-              onClick={() =>
-                void withToken((token) => downloadDocument(document, token)).catch((cause) =>
-                  toast.error(cause instanceof Error ? cause.message : "ดาวน์โหลดไม่สำเร็จ"),
-                )
-              }
+              disabled={fileAction !== null}
+              onClick={() => void runFileAction("download")}
             >
-              <Download aria-hidden="true" size={17} strokeWidth={1.8} />
-              ดาวน์โหลด
+              {fileAction === "download" ? (
+                <LoaderCircle className="animate-spin" aria-hidden="true" size={17} strokeWidth={1.8} />
+              ) : (
+                <Download aria-hidden="true" size={17} strokeWidth={1.8} />
+              )}
+              {fileAction === "download" ? "กำลังดาวน์โหลด…" : "ดาวน์โหลด"}
             </Button>
             {"share" in navigator ? (
               <Button
                 variant="secondary"
-                onClick={() =>
-                  void withToken((token) => shareDocument(document, token)).catch((cause) =>
-                    toast.error(cause instanceof Error ? cause.message : "แชร์ไม่สำเร็จ"),
-                  )
-                }
+                disabled={fileAction !== null}
+                onClick={() => void runFileAction("share")}
               >
-                <Share2 aria-hidden="true" size={17} strokeWidth={1.8} />
-                แชร์
+                {fileAction === "share" ? (
+                  <LoaderCircle className="animate-spin" aria-hidden="true" size={17} strokeWidth={1.8} />
+                ) : (
+                  <Share2 aria-hidden="true" size={17} strokeWidth={1.8} />
+                )}
+                {fileAction === "share" ? "กำลังแชร์…" : "แชร์"}
               </Button>
             ) : null}
             <Button
               variant="primary"
+              disabled={!categories.isSuccess || categories.data.length === 0}
               onClick={() => {
                 update.reset();
                 setEditOpen(true);
@@ -121,6 +145,12 @@ export function DocumentPage() {
           </div>
         }
       />
+
+      {!categories.isSuccess ? (
+        <p className="text-sm text-muted" role="status">
+          {categories.isPending ? "กำลังโหลดหมวดหมู่สำหรับการแก้ไข…" : "โหลดหมวดหมู่ไม่สำเร็จ"}
+        </p>
+      ) : null}
 
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <DocumentViewer document={document} />
@@ -202,7 +232,7 @@ export function DocumentPage() {
                   await remove.mutateAsync(document.id);
                   setDeleteOpen(false);
                   toast.success("ลบเอกสารแล้ว");
-                  navigate("/library", { replace: true });
+                  navigate(returnTo, { replace: true });
                 } catch (error) {
                   toast.error(error instanceof Error ? error.message : "ลบเอกสารไม่สำเร็จ");
                 }

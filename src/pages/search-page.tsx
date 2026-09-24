@@ -1,5 +1,5 @@
 import { Search, SearchX, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DocumentList } from "@/components/document-list";
@@ -13,9 +13,18 @@ export function SearchPage() {
   const urlQuery = params.get("q") ?? "";
   const [input, setInput] = useState(urlQuery);
   const queryText = useDebouncedValue(input.trim(), 300);
-  const documentsQuery = useDocuments({ query: queryText }, 30, queryText.length > 0);
-  const documents = documentsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const thaiQueryTooShort = /[\u0e00-\u0e7f]/u.test(queryText) && queryText.length < 2;
+  const documentsQuery = useDocuments(
+    { query: queryText },
+    30,
+    queryText.length > 0 && !thaiQueryTooShort,
+  );
+  const documents = useMemo(
+    () => documentsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [documentsQuery.data?.pages],
+  );
   const total = documentsQuery.data?.pages[0]?.total;
+  const loadMore = useCallback(() => void documentsQuery.fetchNextPage(), [documentsQuery.fetchNextPage]);
 
   useEffect(() => setInput(urlQuery), [urlQuery]);
 
@@ -65,17 +74,24 @@ export function SearchPage() {
           description="พิมพ์ชื่อไฟล์หรือคำในบันทึกข้อมูลเพื่อเริ่มค้นหา"
         />
       ) : null}
-      {queryText && documentsQuery.isPending ? (
+      {thaiQueryTooShort ? (
+        <EmptyState
+          icon={Search}
+          title="พิมพ์คำค้นอย่างน้อย 2 ตัวอักษร"
+          description="การค้นหาภาษาไทยจะเริ่มได้เมื่อมีอักษรไทยอย่างน้อย 2 ตัว"
+        />
+      ) : null}
+      {queryText && !thaiQueryTooShort && documentsQuery.isPending ? (
         <div className="grid gap-2" aria-label="กำลังค้นหา">
           {Array.from({ length: 4 }, (_, index) => (
             <Skeleton key={index} className="h-20 w-full" />
           ))}
         </div>
       ) : null}
-      {queryText && documentsQuery.isError ? (
+      {queryText && !thaiQueryTooShort && documentsQuery.isError ? (
         <ErrorState error={documentsQuery.error} onRetry={() => void documentsQuery.refetch()} />
       ) : null}
-      {queryText && documentsQuery.isSuccess && documents.length === 0 ? (
+      {queryText && !thaiQueryTooShort && documentsQuery.isSuccess && documents.length === 0 ? (
         <EmptyState
           icon={SearchX}
           title="ไม่พบเอกสาร"
@@ -92,7 +108,7 @@ export function SearchPage() {
             documents={documents}
             hasNextPage={documentsQuery.hasNextPage}
             isFetchingNextPage={documentsQuery.isFetchingNextPage}
-            onLoadMore={() => void documentsQuery.fetchNextPage()}
+            onLoadMore={loadMore}
           />
         </div>
       ) : null}

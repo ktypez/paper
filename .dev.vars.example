@@ -1,3 +1,4 @@
 CLERK_SECRET_KEY=sk_test_replace_me
 CLERK_PUBLISHABLE_KEY=pk_test_replace_me
 # CLERK_JWKS_URL=https://your-clerk-host/.well-known/jwks.json
+# CLERK_ALLOWED_ORIGINS=https://paper.mcky.space,http://localhost:5173

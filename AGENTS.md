@@ -58,12 +58,19 @@ npm run check:syntax # parse Functions and cleanup worker
 npm run build        # typecheck and build to ./public
 npm run build:functions # bundle and verify Pages Functions routes
 npm run check        # tests, frontend build, and Functions bundle
+npm run release:check # clean master worktree and matching origin/master
 ```
 
-Deploy only after `npm run check` passes:
+GitHub Actions runs the same checks on pushes and pull requests via `.github/workflows/ci.yml`.
+
+Deploy only after `npm run check` passes and the release SHA is explicitly approved. Before production deploy, verify the R2 dev URL is disabled, no R2 custom domain is connected, `PRAGMA quick_check` is `ok`, and the API host guard is active.
 
 ```bash
-npx wrangler pages deploy ./public --project-name=receipts-dms
+npm run release:check
+npx wrangler r2 bucket dev-url get receipts-dms-bucket
+npx wrangler r2 bucket domain list receipts-dms-bucket
+npx wrangler d1 execute receipts-db --remote --json --command 'PRAGMA quick_check'
+npx wrangler pages deploy ./public --project-name=receipts-dms --branch=master
 ```
 
 `public/` is generated output. Never hand-edit it.
@@ -74,7 +81,7 @@ npx wrangler pages deploy ./public --project-name=receipts-dms
 - `.dev.vars`: `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, optional `CLERK_JWKS_URL`
 - `.env.example` and `.dev.vars.example` show the required names
 - Real secret files are gitignored
-- The existing local `.dev.vars` may still contain retired Better Auth names and must be updated manually for local API work
+- Keep local `.dev.vars` limited to current Clerk variables; retired Better Auth names must not be restored
 
 ## Data contract
 
@@ -108,6 +115,7 @@ Critical invariants:
 - Original R2 key is exactly `receipts.id`
 - Thumbnail key is exactly `receipts.thumb_key`; it is nullable
 - `receipts.category` stores the category name, not the category ID
+- Rows whose filename starts with the reserved pending-upload prefix are internal reservations and must be hidden from all public queries
 - `owner` is free text, not a Clerk user or tenant ID
 - FTS uses the implicit `receipts.rowid`; do not replace the table with `WITHOUT ROWID`
 - Existing rows may have no thumbnail; preview must fall back to the original
@@ -134,7 +142,7 @@ All `/api/*` routes are guarded by `functions/api/_middleware.js`.
 
 Category rename updates both `categories.name` and matching `receipts.category` in one D1 batch. Category deletion is blocked while documents reference the name. Reordering requires the exact full set of category IDs.
 
-Upload validates file signatures, not only the browser MIME type. Images may omit a thumbnail. Delete removes the D1 row first so a storage failure cannot leave a visible document with a missing original, then makes idempotent R2 deletes and logs any orphan cleanup failure. File responses are private, support ETag and byte ranges, and must never use public cache headers.
+Upload validates file signatures, not only the browser MIME type. Images may omit a thumbnail. New uploads reserve a hidden pending receipt row before writing R2, use a conditional R2 put, and finalize the row only after storage succeeds; this closes normal concurrent-upload and delete/reupload races without changing the schema. A crashed upload can leave an orphan R2 object and requires reconciliation after the pending lease expires. Delete removes the D1 row first so a storage failure cannot leave a visible document with a missing original, then makes idempotent R2 deletes and logs any orphan cleanup failure. File responses are private, support ETag and byte ranges, and must never use public cache headers.
 
 ## Frontend
 
@@ -155,18 +163,19 @@ Old `/lib`, `/r/:id`, `/receipts`, `/receipts/:id`, `/upload`, `/dashboard`, `/c
 
 Important files:
 
-- `src/app.tsx`: providers, auth gate, lazy routes
+- `src/app.tsx`: theme, error boundary, and the lazy Clerk boundary
+- `src/auth-root.tsx`: Clerk provider, data router, and lazy routes
 - `src/components/app-shell.tsx`: responsive shell and navigation
 - `src/lib/api.ts`: typed API client and XHR upload progress
 - `src/lib/query.tsx`: TanStack Query hooks and mutations
 - `src/pages/`: route screens
 - `src/styles.css`: the only color, radius, shadow, and motion token source
 
-The app does not register a service worker. `static/sw.js` is a one-release cleanup stub that existing legacy registrations can update to; it has no fetch handler and unregisters itself. Startup also unregisters legacy workers and removes old Paper Workbox caches. The Settings screen can explicitly remove legacy IndexedDB and Cache API data.
+The app does not register a service worker. `static/sw.js` is a one-release cleanup stub that existing legacy registrations can update to; it has no fetch handler and unregisters itself. `static/manifest.webmanifest` is an empty tombstone that prevents a stale legacy manifest from surviving a direct Pages asset deployment. Startup also unregisters legacy workers and removes old Paper Workbox caches. The Settings screen can explicitly remove legacy IndexedDB and Cache API data.
 
 ## Auth
 
-`functions/api/_lib/auth.js` verifies Clerk RS256 session tokens against cached JWKS, then checks `private_metadata.apps` for `paper`. It accepts a Bearer token or Clerk `__session` cookie, fails closed, and caches access decisions for five minutes.
+`functions/api/_lib/auth.js` verifies Clerk RS256 session tokens against cached JWKS, then checks `private_metadata.apps` for `paper`. Read requests may use a Bearer token or Clerk `__session` cookie. Mutations require a Bearer token and reject cross-site or cookie-only requests. Auth fails closed, times out external Clerk lookups, coalesces concurrent lookups, and caches access decisions for five minutes.
 
 The frontend redirects signed-out users to `me.mcky.space?from=paper`. Do not reintroduce Better Auth.
 
@@ -179,7 +188,7 @@ The frontend redirects signed-out users to `me.mcky.space?from=paper`. Do not re
 5. Do not assume `thumb_key` exists.
 6. Do not add user filtering without a migration and a policy for existing global rows.
 7. Do not reintroduce PWA, service workers, tags, or subcategories.
-8. Preview deployments may still bind the same D1 and R2 unless bindings are deliberately isolated.
+8. Preview deployments may still bind the same D1 and R2 unless bindings are deliberately isolated. The API host guard blocks non-production preview hosts as a safety net, but separate resources are still required for preview reads and writes.
 9. Local Wrangler execution may require the correct Clerk variables in `.dev.vars`.
 10. `origin/master` may be behind the local rewrite branch; verify the deployed revision before release.
 

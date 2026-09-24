@@ -2,6 +2,18 @@ import { RequestError } from "./http.js";
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024;
 export const MAX_THUMBNAIL_SIZE = 256 * 1024;
+export const MAX_UPLOAD_BODY_SIZE = MAX_FILE_SIZE + MAX_THUMBNAIL_SIZE + 128 * 1024;
+export const MIN_THAI_SEARCH_LENGTH = 2;
+export const PENDING_UPLOAD_PREFIX = "__paper_pending__:";
+export const PENDING_UPLOAD_TTL_MS = 15 * 60 * 1000;
+
+export function isPendingUpload(row) {
+  return typeof row?.filename === "string" && row.filename.startsWith(PENDING_UPLOAD_PREFIX);
+}
+
+export function pendingUploadPattern() {
+  return `${PENDING_UPLOAD_PREFIX.replace(/[\\%_]/g, "\\$&")}%`;
+}
 export const SUPPORTED_FILE_TYPES = new Set([
   "image/jpeg",
   "image/png",
@@ -9,6 +21,10 @@ export const SUPPORTED_FILE_TYPES = new Set([
   "application/pdf",
 ]);
 export const SUPPORTED_THUMBNAIL_TYPES = new Set(["image/jpeg", "image/webp"]);
+
+export function safeFileContentType(value) {
+  return SUPPORTED_FILE_TYPES.has(value) ? value : "application/octet-stream";
+}
 
 export function requiredText(value, label, maxLength) {
   if (typeof value !== "string") throw new RequestError(400, "invalid_text", `${label}ไม่ถูกต้อง`);
@@ -47,6 +63,7 @@ export function encodeCursor(uploadedAt, id) {
 
 export function decodeCursor(cursor) {
   try {
+    if (typeof cursor !== "string" || cursor.length > 512) throw new Error("cursor too long");
     let value = cursor.replace(/-/g, "+").replace(/_/g, "/");
     while (value.length % 4) value += "=";
     const [uploadedAt, id] = atob(value).split("|");

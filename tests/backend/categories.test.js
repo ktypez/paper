@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { onRequestDelete, onRequestPatch } from "../../functions/api/categories/[id].js";
+import { onRequestPost } from "../../functions/api/categories/index.js";
+import { onRequestPut as onRequestOrder } from "../../functions/api/categories/order.js";
 import { createTestD1 } from "./helpers/d1-adapter.js";
 
 function categoryDatabase() {
@@ -47,6 +49,34 @@ test("category rename updates receipt references and the FTS index", async () =>
   assert.equal((await response.json()).documentCount, 1);
   assert.equal(receipt.category, "ใหม่");
   assert.equal(search.length, 1);
+});
+
+test("category creation rejects case-insensitive duplicates atomically", async () => {
+  const { d1 } = categoryDatabase();
+  const response = await onRequestPost({
+    env: { receipts_db: d1 },
+    request: new Request("https://paper.test/api/categories", {
+      method: "POST",
+      body: JSON.stringify({ name: "เดิม" }),
+    }),
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal((await response.json()).error.code, "category_exists");
+});
+
+test("category order rejects oversized id arrays", async () => {
+  const { d1 } = categoryDatabase();
+  const response = await onRequestOrder({
+    env: { receipts_db: d1 },
+    request: new Request("https://paper.test/api/categories/order", {
+      method: "PUT",
+      body: JSON.stringify({ ids: Array.from({ length: 101 }, (_, index) => `category-${index}`) }),
+    }),
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal((await response.json()).error.code, "invalid_order");
 });
 
 test("a category with documents cannot be deleted", async () => {

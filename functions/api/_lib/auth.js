@@ -1,8 +1,15 @@
 const JWKS_TTL = 24 * 60 * 60 * 1000;
 const ACCESS_TTL = 5 * 60 * 1000;
 const MAX_ACCESS_ENTRIES = 500;
+const MAX_TOKEN_LENGTH = 16 * 1024;
+const AUTH_FETCH_TIMEOUT_MS = 4000;
+const JWKS_REFRESH_COOLDOWN_MS = 60 * 1000;
+
+class AuthUnavailableError extends Error {}
 
 let jwksCache = { keys: null, expiresAt: 0 };
+let jwksLastRefreshAt = 0;
+let jwksNextAttemptAt = 0;
 let jwksRequest = null;
 const accessCache = new Map();
 const accessRequests = new Map();
@@ -35,21 +42,52 @@ function jwksUrl(env) {
   return host ? `https://${host}/.well-known/jwks.json` : null;
 }
 
-async function getJwks(env) {
-  if (jwksCache.keys && jwksCache.expiresAt > Date.now()) return jwksCache.keys;
-  if (jwksRequest) return jwksRequest;
+function expectedIssuer(env) {
+  const host = frontendApiHost(env.CLERK_PUBLISHABLE_KEY);
+  if (host) return `https://${host}`;
+  try {
+    return env.CLERK_JWKS_URL ? new URL(env.CLERK_JWKS_URL).origin : null;
+  } catch {
+    return null;
+  }
+}
 
+async function fetchJsonWithTimeout(url, init) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AUTH_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    if (!response.ok) return { response, payload: null };
+    return { response, payload: await response.json() };
+  } catch (error) {
+    throw new AuthUnavailableError("Clerk request failed", { cause: error });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function getJwks(env, forceRefresh = false) {
+  if (!forceRefresh && jwksCache.keys && jwksCache.expiresAt > Date.now()) return jwksCache.keys;
+  if (jwksRequest) return jwksRequest;
+  if (jwksCache.keys && Date.now() < jwksNextAttemptAt) return jwksCache.keys;
+  if (!jwksCache.keys && Date.now() < jwksNextAttemptAt) {
+    throw new AuthUnavailableError("Clerk JWKS refresh is cooling down");
+  }
+
+  jwksNextAttemptAt = Date.now() + JWKS_REFRESH_COOLDOWN_MS;
   jwksRequest = (async () => {
     const url = jwksUrl(env);
-    if (!url) throw new Error("Clerk JWKS is not configured");
+    if (!url) throw new AuthUnavailableError("Clerk JWKS is not configured");
 
-    const response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
-    if (!response.ok) throw new Error("Clerk JWKS request failed");
-    const payload = await response.json();
-    if (!Array.isArray(payload.keys) || payload.keys.length === 0) {
-      throw new Error("Clerk JWKS is empty");
+    const { response, payload } = await fetchJsonWithTimeout(url, {
+      cf: { cacheTtl: 86400, cacheEverything: true },
+    });
+    if (!response.ok) throw new AuthUnavailableError("Clerk JWKS request failed");
+    if (!Array.isArray(payload?.keys) || payload.keys.length === 0) {
+      throw new AuthUnavailableError("Clerk JWKS is empty");
     }
-    jwksCache = { keys: payload.keys, expiresAt: Date.now() + JWKS_TTL };
+    jwksLastRefreshAt = Date.now();
+    jwksCache = { keys: payload.keys, expiresAt: jwksLastRefreshAt + JWKS_TTL };
     return payload.keys;
   })();
 
@@ -83,7 +121,8 @@ async function verifySignature(jwk, token) {
   if (!valid) throw new Error("Invalid session signature");
 }
 
-async function verifySessionToken(token, env) {
+async function verifySessionToken(token, env, requestUrl, requestOrigin) {
+  if (token.length > MAX_TOKEN_LENGTH) throw new Error("Invalid session token");
   const parts = token.split(".");
   if (parts.length !== 3) throw new Error("Invalid session token");
   const header = JSON.parse(new TextDecoder().decode(base64UrlToBytes(parts[0])));
@@ -99,12 +138,42 @@ async function verifySessionToken(token, env) {
   if (typeof payload.nbf === "number" && payload.nbf > now + 30) {
     throw new Error("Session is not active");
   }
+  const issuer = expectedIssuer(env);
+  if (issuer && payload.iss !== issuer) {
+    throw new Error("Invalid session issuer");
+  }
+  if (payload.azp) {
+    let urlOrigin;
+    try {
+      urlOrigin = new URL(requestUrl).origin;
+    } catch {
+      throw new Error("Invalid session party");
+    }
+    const allowedOrigins = new Set([urlOrigin]);
+    if (urlOrigin.includes("localhost") || urlOrigin.includes("127.0.0.1")) {
+      if (requestOrigin) allowedOrigins.add(requestOrigin);
+      allowedOrigins.add("http://localhost:5173");
+      allowedOrigins.add("http://localhost:8788");
+      allowedOrigins.add("http://127.0.0.1:5173");
+      allowedOrigins.add("http://127.0.0.1:8788");
+    }
+    for (const origin of (env.CLERK_ALLOWED_ORIGINS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean)) {
+      allowedOrigins.add(origin);
+    }
+    if (!allowedOrigins.has(payload.azp)) throw new Error("Invalid session party");
+  }
 
   let keys = await getJwks(env);
   let jwk = keys.find((key) => key.kid === header.kid);
   if (!jwk) {
-    jwksCache = { keys: null, expiresAt: 0 };
-    keys = await getJwks(env);
+    // Unknown key IDs are attacker-controlled, so refresh them at most once per cooldown.
+    if (Date.now() - jwksLastRefreshAt < JWKS_REFRESH_COOLDOWN_MS) {
+      throw new Error("Unknown session key");
+    }
+    keys = await getJwks(env, true);
     jwk = keys.find((key) => key.kid === header.kid);
   }
   if (!jwk) throw new Error("Unknown session key");
@@ -131,14 +200,18 @@ async function getUserApps(userId, env) {
   if (cached && cached.expiresAt > Date.now()) return cached.apps;
   const pending = accessRequests.get(userId);
   if (pending) return pending;
-  if (!env.CLERK_SECRET_KEY) throw new Error("Clerk secret is not configured");
+  if (!env.CLERK_SECRET_KEY) throw new AuthUnavailableError("Clerk secret is not configured");
 
   const request = (async () => {
-    const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
-      headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
-    });
-    if (!response.ok) throw new Error("Clerk user request failed");
-    const user = await response.json();
+    const { response, payload } = await fetchJsonWithTimeout(
+      `https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` } },
+    );
+    if (!response.ok) throw new AuthUnavailableError("Clerk user request failed");
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      throw new AuthUnavailableError("Clerk user response is invalid");
+    }
+    const user = payload;
     const apps = Array.isArray(user.private_metadata?.apps) ? user.private_metadata.apps : [];
 
     pruneAccessCache();
@@ -176,12 +249,12 @@ export async function fastAuth(request, env) {
   try {
     const token = bearerToken(request);
     if (!token) return { ok: false };
-    const payload = await verifySessionToken(token, env);
+    const payload = await verifySessionToken(token, env, request.url, request.headers.get("origin"));
     const apps = await getUserApps(payload.sub, env);
     if (!apps.includes("paper")) return { ok: false };
     return { ok: true, userId: payload.sub, sessionId: payload.sid ?? null };
-  } catch {
-    return { ok: false };
+  } catch (error) {
+    return error instanceof AuthUnavailableError ? { ok: false, unavailable: true } : { ok: false };
   }
 }
 

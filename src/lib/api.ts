@@ -9,6 +9,9 @@ import type {
 } from "./types";
 
 const API_ROOT = "/api";
+const REQUEST_TIMEOUT_MS = 15_000;
+const FILE_REQUEST_TIMEOUT_MS = 60_000;
+const UPLOAD_TIMEOUT_MS = 120_000;
 
 type ErrorPayload = {
   error?: string | { code?: string; message?: string };
@@ -26,6 +29,21 @@ export class ApiError extends Error {
     this.status = status;
     this.code = code;
   }
+}
+
+function timeoutSignal(parent: AbortSignal | null | undefined, timeoutMs: number) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (parent?.aborted) controller.abort();
+  else parent?.addEventListener("abort", abort, { once: true });
+  const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+  return {
+    signal: controller.signal,
+    cleanup() {
+      window.clearTimeout(timer);
+      parent?.removeEventListener("abort", abort);
+    },
+  };
 }
 
 function authHeaders(token: string) {
@@ -55,15 +73,20 @@ async function request<T>(
   headers.set("Authorization", `Bearer ${token}`);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
 
-  const response = await fetch(`${API_ROOT}${path}`, {
-    ...init,
-    headers,
-    credentials: "same-origin",
-  });
-
-  if (!response.ok) throw await readError(response);
-  if (response.status === 204) return undefined as T;
-  return (await response.json()) as T;
+  const timeout = timeoutSignal(init.signal, REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${API_ROOT}${path}`, {
+      ...init,
+      headers,
+      signal: timeout.signal,
+      credentials: "same-origin",
+    });
+    if (!response.ok) throw await readError(response);
+    if (response.status === 204) return undefined as T;
+    return (await response.json()) as T;
+  } finally {
+    timeout.cleanup();
+  }
 }
 
 function documentParams(filters: DocumentFilters, cursor?: string, limit?: number) {
@@ -137,6 +160,9 @@ export function documentFileUrl(id: string, variant: "preview" | "original") {
 }
 
 export function uploadDocument(input: UploadInput) {
+  if (input.signal?.aborted) {
+    return Promise.reject(new DOMException("ยกเลิกการอัปโหลด", "AbortError"));
+  }
   return new Promise<DocumentRecord>((resolve, reject) => {
     const request = new XMLHttpRequest();
     const form = new FormData();
@@ -153,6 +179,7 @@ export function uploadDocument(input: UploadInput) {
     request.setRequestHeader("Authorization", `Bearer ${input.token}`);
     request.withCredentials = true;
     request.responseType = "json";
+    request.timeout = UPLOAD_TIMEOUT_MS;
 
     request.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable) {
@@ -170,17 +197,33 @@ export function uploadDocument(input: UploadInput) {
       reject(errorFromPayload((payload ?? {}) as ErrorPayload, request.status));
     });
     request.addEventListener("error", () => reject(new ApiError("อัปโหลดไม่สำเร็จ กรุณาตรวจสอบเครือข่าย")));
+    request.addEventListener("timeout", () => reject(new ApiError("อัปโหลดใช้เวลานานเกินไป กรุณาลองอีกครั้ง")));
     request.addEventListener("abort", () => reject(new DOMException("ยกเลิกการอัปโหลด", "AbortError")));
 
-    input.signal?.addEventListener("abort", () => request.abort(), { once: true });
+    const abortUpload = () => {
+      request.abort();
+      reject(new DOMException("ยกเลิกการอัปโหลด", "AbortError"));
+    };
+    input.signal?.addEventListener("abort", abortUpload, { once: true });
+    if (input.signal?.aborted) {
+      abortUpload();
+      return;
+    }
     request.send(form);
   });
 }
 
-export function authenticatedFileRequest(url: string, token: string, signal?: AbortSignal) {
-  return fetch(url, {
-    headers: authHeaders(token),
-    credentials: "same-origin",
-    signal,
-  });
+export async function authenticatedFileBlob(url: string, token: string, signal?: AbortSignal) {
+  const timeout = timeoutSignal(signal, FILE_REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, {
+      headers: authHeaders(token),
+      credentials: "same-origin",
+      signal: timeout.signal,
+    });
+    if (!response.ok) throw new ApiError("เปิดไฟล์ไม่สำเร็จ", response.status);
+    return await response.blob();
+  } finally {
+    timeout.cleanup();
+  }
 }

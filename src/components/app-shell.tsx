@@ -1,10 +1,35 @@
+import { useEffect, useRef } from "react";
 import { Toaster } from "sonner";
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import { Logo } from "./logo";
 import { BottomNavigation, DesktopNavigation } from "./navigation";
 import { ThemeToggle } from "./theme-toggle";
 
 export function AppShell() {
+  const location = useLocation();
+  const firstRender = useRef(true);
+  const main = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const section = location.pathname === "/"
+      ? "Paper"
+      : location.pathname.startsWith("/d/")
+        ? "เอกสาร"
+        : location.pathname.startsWith("/more")
+          ? "ตั้งค่า"
+          : "คลังเอกสาร";
+    document.title = section === "Paper" ? section : `${section} · Paper`;
+  }, [location.pathname]);
+
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    window.scrollTo({ top: 0, behavior: "auto" });
+    main.current?.focus({ preventScroll: true });
+  }, [location.pathname]);
+
   return (
     <div className="min-h-dvh bg-canvas text-ink">
       <a
@@ -27,7 +52,9 @@ export function AppShell() {
       </header>
 
       <main
+        ref={main}
         id="main-content"
+        tabIndex={-1}
         className="mx-auto min-h-[calc(100dvh-4rem)] w-full max-w-[1280px] px-4 pb-[calc(6.5rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 sm:pt-8 md:pb-10 lg:px-8"
       >
         <Outlet />

@@ -1,4 +1,5 @@
 import { FilterX, FolderOpen, Plus } from "lucide-react";
+import { useCallback, useMemo } from "react";
 import { Link, useSearchParams } from "react-router";
 import { Button } from "@/components/ui/button";
 import { DocumentList } from "@/components/document-list";
@@ -22,8 +23,12 @@ export function LibraryPage() {
   const categories = useCategories();
   const summary = useSummary();
   const documentsQuery = useDocuments({ category, owner });
-  const documents = documentsQuery.data?.pages.flatMap((page) => page.items) ?? [];
+  const documents = useMemo(
+    () => documentsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [documentsQuery.data?.pages],
+  );
   const total = documentsQuery.data?.pages[0]?.total;
+  const loadMore = useCallback(() => void documentsQuery.fetchNextPage(), [documentsQuery.fetchNextPage]);
   const hasFilters = Boolean(category || owner);
 
   function setFilter(name: "category" | "owner", value: string) {
@@ -133,7 +138,7 @@ export function LibraryPage() {
             documents={documents}
             hasNextPage={documentsQuery.hasNextPage}
             isFetchingNextPage={documentsQuery.isFetchingNextPage}
-            onLoadMore={() => void documentsQuery.fetchNextPage()}
+            onLoadMore={loadMore}
           />
         </div>
       ) : null}

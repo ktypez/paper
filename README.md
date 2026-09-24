@@ -38,16 +38,17 @@ API: `http://localhost:8788`
 npm run check
 ```
 
-This runs backend tests, strict TypeScript checks, a production frontend build, and a Pages Functions route bundle.
+This runs backend tests, strict TypeScript checks, a production frontend build, and a Pages Functions route bundle. The same command runs in GitHub Actions for pushes and pull requests.
 
 ## Deploy
 
 ```bash
-npm run build
-npx wrangler pages deploy ./public --project-name=receipts-dms
+npm run check
+npm run release:check
+npx wrangler pages deploy ./public --project-name=receipts-dms --branch=master
 ```
 
-Do not run a database migration as part of deployment. The application is built to read and write the existing `receipts` and `categories` tables.
+Do not run a database migration as part of deployment. The application is built to read and write the existing `receipts` and `categories` tables. Preview Pages deployments currently inherit the production D1/R2 bindings, so the API host guard blocks preview requests until separate preview resources exist.
 
 ## Project map
 
