@@ -1,62 +1,72 @@
-export async function onRequestPut(context) {
-  const { receipts_db: DB } = context.env;
-  const id = context.params.id;
-  const body = await context.request.json();
-  const name = (body.name || "").trim();
-  if (!name) {
-    return new Response(JSON.stringify({ error: "ต้องใส่ชื่อหมวดหมู่" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+import { toCategory } from "../_lib/records.js";
+import { errorResponse, json, noContent, RequestError } from "../_lib/http.js";
+import { requiredText } from "../_lib/validation.js";
+
+const CATEGORY_QUERY =
+  "SELECT c.id, c.name, c.created_at, c.sort_order, COUNT(r.id) AS receipt_count " +
+  "FROM categories c LEFT JOIN receipts r ON r.category = c.name ";
+
+export async function onRequestPatch(context) {
+  try {
+    const { receipts_db: DB } = context.env;
+    const id = requiredText(context.params.id, "รหัสหมวดหมู่", 100);
+    const body = await readJson(context.request);
+    if (Object.keys(body).some((key) => key !== "name")) {
+      throw new RequestError(400, "unknown_field", "มีข้อมูลที่แก้ไขไม่ได้");
+    }
+    const name = requiredText(body.name, "ชื่อหมวดหมู่", 80);
+    const current = await DB.prepare("SELECT id, name FROM categories WHERE id = ?").bind(id).first();
+    if (!current) throw new RequestError(404, "category_not_found", "ไม่พบหมวดหมู่");
+    if (current.name === name) {
+      const unchanged = await DB.prepare(`${CATEGORY_QUERY} WHERE c.id = ? GROUP BY c.id`).bind(id).first();
+      return json(toCategory(unchanged));
+    }
+
+    const duplicate = await DB.prepare(
+      "SELECT id FROM categories WHERE id <> ? AND name = ? COLLATE NOCASE",
+    )
+      .bind(id, name)
+      .first();
+    if (duplicate) throw new RequestError(409, "category_exists", "มีหมวดหมู่นี้อยู่แล้ว");
+
+    await DB.batch([
+      DB.prepare("UPDATE categories SET name = ? WHERE id = ?").bind(name, id),
+      DB.prepare("UPDATE receipts SET category = ? WHERE category = ?").bind(name, current.name),
+    ]);
+    const updated = await DB.prepare(`${CATEGORY_QUERY} WHERE c.id = ? GROUP BY c.id`).bind(id).first();
+    return json(toCategory(updated));
+  } catch (error) {
+    return errorResponse(error);
   }
-
-  const conflict = await DB.prepare(
-    "SELECT id FROM categories WHERE name = ? AND id != ?"
-  )
-    .bind(name, id)
-    .first();
-  if (conflict) {
-    return new Response(
-      JSON.stringify({ error: "มีหมวดหมู่นี้อยู่แล้ว" }),
-      { status: 409, headers: { "Content-Type": "application/json" } }
-    );
-  }
-
-  await DB.prepare("UPDATE categories SET name = ? WHERE id = ?")
-    .bind(name, id)
-    .run();
-
-  return new Response(JSON.stringify({ id, name }), {
-    headers: { "Content-Type": "application/json" },
-  });
 }
 
 export async function onRequestDelete(context) {
-  const { receipts_db: DB } = context.env;
-  const id = context.params.id;
-
-  const cat = await DB.prepare("SELECT name FROM categories WHERE id = ?")
-    .bind(id)
-    .first();
-  if (!cat) {
-    return new Response("ไม่พบหมวดหมู่", { status: 404 });
+  try {
+    const { receipts_db: DB } = context.env;
+    const id = requiredText(context.params.id, "รหัสหมวดหมู่", 100);
+    const category = await DB.prepare(
+      "SELECT c.id, COUNT(r.id) AS receipt_count FROM categories c " +
+        "LEFT JOIN receipts r ON r.category = c.name WHERE c.id = ? GROUP BY c.id",
+    )
+      .bind(id)
+      .first();
+    if (!category) throw new RequestError(404, "category_not_found", "ไม่พบหมวดหมู่");
+    if (category.receipt_count > 0) {
+      throw new RequestError(409, "category_in_use", "ย้ายเอกสารออกจากหมวดหมู่นี้ก่อน");
+    }
+    await DB.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
+    return noContent();
+  } catch (error) {
+    return errorResponse(error);
   }
+}
 
-  const count = await DB.prepare(
-    "SELECT COUNT(*) as c FROM receipts WHERE category = ?"
-  )
-    .bind(cat.name)
-    .first();
-
-  if (count && count.c > 0) {
-    return new Response(
-      JSON.stringify({
-        error: "ไม่สามารถลบได้ เนื่องจากมีใบเสร็จใช้หมวดหมู่นี้อยู่",
-      }),
-      { status: 409, headers: { "Content-Type": "application/json" } }
-    );
+async function readJson(request) {
+  try {
+    const body = await request.json();
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new Error("not an object");
+    return body;
+  } catch {
+    throw new RequestError(400, "invalid_json", "ข้อมูลที่ส่งมาไม่ถูกต้อง");
   }
-
-  await DB.prepare("DELETE FROM categories WHERE id = ?").bind(id).run();
-  return new Response(null, { status: 204 });
 }

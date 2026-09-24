@@ -1,22 +1,15 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import "@fontsource-variable/geist";
 import "@fontsource-variable/noto-sans-thai";
-import "@fontsource/inter/400.css";
-import "@fontsource/inter/500.css";
-import "@fontsource/inter/600.css";
-import "@fontsource/inter/700.css";
-import App from "./App";
-import "./index.css";
+import { App } from "./app";
+import { removeLegacyRuntime } from "./lib/runtime-cleanup";
+import "./styles.css";
+
+void removeLegacyRuntime();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
-  </StrictMode>
+  </StrictMode>,
 );
-
-// PWA: register the injectManifest service worker (offline + background sync).
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
-}

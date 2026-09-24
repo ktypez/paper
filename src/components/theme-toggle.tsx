@@ -1,36 +1,21 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TouchArea } from "@/components/ui/touch-area";
-import { useTheme } from "@/lib/theme-provider";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { useTheme } from "@/lib/theme";
 
 export function ThemeToggle() {
-  const { theme, toggle } = useTheme();
+  const { resolvedTheme, setPreference } = useTheme();
+  const nextTheme = resolvedTheme === "dark" ? "light" : "dark";
+  const Icon = resolvedTheme === "dark" ? Sun : Moon;
 
   return (
-    <TooltipProvider delayDuration={100}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <TouchArea asChild>
-            <Button variant="ghost" size="icon" onClick={toggle}>
-            {theme === "light" ? (
-              <Moon className="h-5 w-5" />
-            ) : (
-              <Sun className="h-5 w-5" />
-            )}
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-          </TouchArea>
-        </TooltipTrigger>
-        <TooltipContent side="bottom">
-          Switch to {theme === "light" ? "dark" : "light"} mode
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setPreference(nextTheme)}
+      aria-label={nextTheme === "dark" ? "เปลี่ยนเป็นโหมดมืด" : "เปลี่ยนเป็นโหมดสว่าง"}
+      title={nextTheme === "dark" ? "โหมดมืด" : "โหมดสว่าง"}
+    >
+      <Icon aria-hidden="true" size={20} strokeWidth={1.8} />
+    </Button>
   );
 }

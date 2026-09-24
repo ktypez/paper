@@ -1,6 +1,6 @@
--- v2 migration: thumbnails, full-text search, covering indexes.
--- Apply: wrangler d1 execute receipts-db --remote --file=migrations/0002_v2.sql
--- (local:  --local)
+-- Historical v2 migration: thumbnails, full-text search, covering indexes.
+-- Applied to production on 2026-09-06. This script is not idempotent.
+-- Do not rerun it against production. Fresh databases use schema.sql.
 
 -- 1. Thumbnail R2 key per receipt (generated client-side at upload).
 ALTER TABLE receipts ADD COLUMN thumb_key TEXT;

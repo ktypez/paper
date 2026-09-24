@@ -1,151 +1,165 @@
-// Fast Clerk auth for Pages Functions — zero-dependency JWT verification.
-//
-// Replaces per-request `authenticateRequest` + `users.getUser` (2 Clerk API
-// round-trips) with:
-//   1. Local RS256 verification of the session JWT against a cached JWKS
-//      (~0ms hot path; JWKS refetched at most once per 24h per isolate).
-//   2. Access decision (privateMetadata.apps includes "paper") cached
-//      per user for 5 minutes (one Clerk API call per user per 5 min).
-//
-// Fail-closed: any error → { ok: false }.
-
-const JWKS_TTL = 24 * 3600 * 1000;
+const JWKS_TTL = 24 * 60 * 60 * 1000;
 const ACCESS_TTL = 5 * 60 * 1000;
+const MAX_ACCESS_ENTRIES = 500;
 
-let jwksCache = { keys: null, exp: 0 };
-const accessCache = new Map(); // userId -> { apps: string[], exp: number }
+let jwksCache = { keys: null, expiresAt: 0 };
+const accessCache = new Map();
 
-function b64urlToBytes(s) {
-  s = s.replace(/-/g, "+").replace(/_/g, "/");
-  while (s.length % 4) s += "=";
-  const bin = atob(s);
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+function base64UrlToBytes(value) {
+  let normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+  while (normalized.length % 4) normalized += "=";
+  const binary = atob(normalized);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
 }
 
 function frontendApiHost(publishableKey) {
-  // Clerk publishable keys end with UNPADDED base64(<frontend-api hostname>).
-  // atob() without restoring padding silently drops the tail byte
-  // (e.g. "clerk.mcky.spac"), so pad first.
-  let tail = (publishableKey || "").split("_").pop() || "";
-  tail = tail.replace(/-/g, "+").replace(/_/g, "/");
-  while (tail.length % 4) tail += "=";
+  let encodedHost = (publishableKey ?? "").split("_").at(-1) ?? "";
+  encodedHost = encodedHost.replace(/-/g, "+").replace(/_/g, "/");
+  while (encodedHost.length % 4) encodedHost += "=";
   try {
-    const host = atob(tail);
-    // Clerk suffixes decode with a trailing "$" sentinel — strip it.
-    return host.replace(/\$$/, "") || null;
+    return atob(encodedHost).replace(/\$$/, "") || null;
   } catch {
     return null;
   }
 }
 
+function jwksUrl(env) {
+  if (env.CLERK_JWKS_URL) return env.CLERK_JWKS_URL;
+  const host = frontendApiHost(env.CLERK_PUBLISHABLE_KEY);
+  return host ? `https://${host}/.well-known/jwks.json` : null;
+}
+
 async function getJwks(env) {
-  const now = Date.now();
-  if (jwksCache.keys && jwksCache.exp > now) return jwksCache.keys;
-  const override = env.CLERK_JWKS_URL;
-  const host = override ? null : frontendApiHost(env.CLERK_PUBLISHABLE_KEY);
-  const url = override || (host ? `https://${host}/.well-known/jwks.json` : null);
-  if (!url) throw new Error("no jwks url");
-  const res = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
-  if (!res.ok) throw new Error("jwks fetch failed");
-  const { keys } = await res.json();
-  jwksCache = { keys, exp: now + JWKS_TTL };
-  return keys;
-}
+  if (jwksCache.keys && jwksCache.expiresAt > Date.now()) return jwksCache.keys;
+  const url = jwksUrl(env);
+  if (!url) throw new Error("Clerk JWKS is not configured");
 
-async function verifySessionToken(token, env) {
-  const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("bad jwt");
-  const header = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[0])));
-  const payload = JSON.parse(new TextDecoder().decode(b64urlToBytes(parts[1])));
-  const now = Math.floor(Date.now() / 1000);
-  if (payload.exp && payload.exp < now - 30) throw new Error("expired");
-  if (payload.nbf && payload.nbf > now + 30) throw new Error("not yet valid");
-  if (header.alg !== "RS256") throw new Error("bad alg");
-
-  const keys = await getJwks(env);
-  const jwk = keys.find((k) => k.kid === header.kid);
-  if (!jwk) {
-    jwksCache = { keys: null, exp: 0 }; // force refetch once (key rotation)
-    const fresh = await getJwks(env);
-    const retry = fresh.find((k) => k.kid === header.kid);
-    if (!retry) throw new Error("unknown kid");
-    return finishVerify(retry, parts, payload);
+  const response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
+  if (!response.ok) throw new Error("Clerk JWKS request failed");
+  const payload = await response.json();
+  if (!Array.isArray(payload.keys) || payload.keys.length === 0) {
+    throw new Error("Clerk JWKS is empty");
   }
-  return finishVerify(jwk, parts, payload);
+  jwksCache = { keys: payload.keys, expiresAt: Date.now() + JWKS_TTL };
+  return payload.keys;
 }
 
-async function finishVerify(jwk, parts, payload) {
-  const key = await crypto.subtle.importKey(
+async function importVerificationKey(jwk) {
+  return crypto.subtle.importKey(
     "jwk",
     { ...jwk, alg: "RS256", ext: true },
     { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
     false,
-    ["verify"]
+    ["verify"],
   );
-  const data = new TextEncoder().encode(parts[0] + "." + parts[1]);
-  const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64urlToBytes(parts[2]), data);
-  if (!ok) throw new Error("bad signature");
+}
+
+async function verifySignature(jwk, token) {
+  const [encodedHeader, encodedPayload, encodedSignature] = token.split(".");
+  const key = await importVerificationKey(jwk);
+  const signed = new TextEncoder().encode(`${encodedHeader}.${encodedPayload}`);
+  const valid = await crypto.subtle.verify(
+    "RSASSA-PKCS1-v1_5",
+    key,
+    base64UrlToBytes(encodedSignature),
+    signed,
+  );
+  if (!valid) throw new Error("Invalid session signature");
+}
+
+async function verifySessionToken(token, env) {
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Invalid session token");
+  const header = JSON.parse(new TextDecoder().decode(base64UrlToBytes(parts[0])));
+  const payload = JSON.parse(new TextDecoder().decode(base64UrlToBytes(parts[1])));
+  const now = Math.floor(Date.now() / 1000);
+
+  if (header.alg !== "RS256" || typeof header.kid !== "string") {
+    throw new Error("Invalid session header");
+  }
+  if (typeof payload.exp !== "number" || payload.exp < now - 30) {
+    throw new Error("Session expired");
+  }
+  if (typeof payload.nbf === "number" && payload.nbf > now + 30) {
+    throw new Error("Session is not active");
+  }
+
+  let keys = await getJwks(env);
+  let jwk = keys.find((key) => key.kid === header.kid);
+  if (!jwk) {
+    jwksCache = { keys: null, expiresAt: 0 };
+    keys = await getJwks(env);
+    jwk = keys.find((key) => key.kid === header.kid);
+  }
+  if (!jwk) throw new Error("Unknown session key");
+
+  await verifySignature(jwk, token);
+  if (typeof payload.sub !== "string" || !payload.sub) throw new Error("Session subject missing");
   return payload;
 }
 
-async function getUserApps(userId, env) {
+function pruneAccessCache() {
   const now = Date.now();
-  const hit = accessCache.get(userId);
-  if (hit && hit.exp > now) return hit.apps;
-  const res = await fetch(`https://api.clerk.com/v1/users/${userId}`, {
+  for (const [userId, entry] of accessCache) {
+    if (entry.expiresAt <= now) accessCache.delete(userId);
+  }
+  while (accessCache.size >= MAX_ACCESS_ENTRIES) {
+    const oldest = accessCache.keys().next().value;
+    if (!oldest) break;
+    accessCache.delete(oldest);
+  }
+}
+
+async function getUserApps(userId, env) {
+  const cached = accessCache.get(userId);
+  if (cached && cached.expiresAt > Date.now()) return cached.apps;
+  if (!env.CLERK_SECRET_KEY) throw new Error("Clerk secret is not configured");
+
+  const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
     headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
   });
-  if (!res.ok) throw new Error("clerk user fetch failed");
-  const user = await res.json();
-  const apps =
-    user.private_metadata && Array.isArray(user.private_metadata.apps)
-      ? user.private_metadata.apps
-      : [];
-  accessCache.set(userId, { apps, exp: now + ACCESS_TTL });
+  if (!response.ok) throw new Error("Clerk user request failed");
+  const user = await response.json();
+  const apps = Array.isArray(user.private_metadata?.apps) ? user.private_metadata.apps : [];
+
+  pruneAccessCache();
+  accessCache.set(userId, { apps, expiresAt: Date.now() + ACCESS_TTL });
   return apps;
 }
 
 function bearerToken(request) {
-  const h = request.headers.get("authorization") || "";
-  const m = h.match(/^Bearer (.+)$/);
-  if (m) return m[1].trim();
-  // SPA fetches (and SW background-sync uploads) carry the Clerk session
-  // as the __session cookie — same token the old SDK middleware read.
-  const cookies = request.headers.get("cookie") || "";
-  for (const part of cookies.split(";")) {
-    const i = part.indexOf("=");
-    if (i < 0) continue;
-    if (part.slice(0, i).trim() === "__session") {
-      try {
-        return decodeURIComponent(part.slice(i + 1).trim());
-      } catch {
-        return part.slice(i + 1).trim();
-      }
+  const authorization = request.headers.get("authorization") ?? "";
+  const bearer = authorization.match(/^Bearer (.+)$/i);
+  if (bearer) return bearer[1].trim();
+
+  for (const part of (request.headers.get("cookie") ?? "").split(";")) {
+    const separator = part.indexOf("=");
+    if (separator < 0 || part.slice(0, separator).trim() !== "__session") continue;
+    const value = part.slice(separator + 1).trim();
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
     }
   }
   return null;
 }
 
 export async function fastAuth(request, env) {
-  return doFastAuth(request, env);
-}
-
-// Exported for tests.
-export { frontendApiHost, bearerToken };
-
-async function doFastAuth(request, env) {
   try {
     const token = bearerToken(request);
     if (!token) return { ok: false };
     const payload = await verifySessionToken(token, env);
-    const userId = payload.sub;
-    if (!userId) return { ok: false };
-    const apps = await getUserApps(userId, env);
+    const apps = await getUserApps(payload.sub, env);
     if (!apps.includes("paper")) return { ok: false };
-    return { ok: true, userId, sessionId: payload.sid || null };
+    return { ok: true, userId: payload.sub, sessionId: payload.sid ?? null };
   } catch {
     return { ok: false };
   }
 }
+
+export { bearerToken, frontendApiHost };

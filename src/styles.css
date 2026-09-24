@@ -1,0 +1,179 @@
+@import "tailwindcss";
+
+:root {
+  --canvas: #f2f5f3;
+  --surface: #fbfcfb;
+  --raised: #ffffff;
+  --ink: #18211d;
+  --muted: #596760;
+  --line: #d8e0dc;
+  --control: #82918a;
+  --accent: #b23a2a;
+  --accent-text: #b23a2a;
+  --accent-hover: #962f23;
+  --accent-quiet: #fcebe8;
+  --success: #2e6b4f;
+  --shadow-sheet: 0 18px 45px rgba(24, 33, 29, 0.14);
+}
+
+.dark {
+  --canvas: #111512;
+  --surface: #171c19;
+  --raised: #1e2521;
+  --ink: #f2f6f3;
+  --muted: #a8b4ae;
+  --line: #303a35;
+  --control: #a8b4ae;
+  --accent: #b23a2a;
+  --accent-text: #e9806d;
+  --accent-hover: #962f23;
+  --accent-quiet: #3b1d18;
+  --success: #2e6b4f;
+  --shadow-sheet: 0 20px 52px rgba(0, 0, 0, 0.42);
+}
+
+@theme inline {
+  --font-sans: "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-control: var(--control);
+  --color-accent: var(--accent-text);
+  --color-accent-solid: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-quiet: var(--accent-quiet);
+  --color-success: var(--success);
+  --radius-sheet: 16px;
+  --shadow-sheet: var(--shadow-sheet);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    min-width: 320px;
+    background: var(--canvas);
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    min-width: 320px;
+    min-height: 100dvh;
+    margin: 0;
+    overflow-x: hidden;
+    background: var(--canvas);
+    color: var(--ink);
+    font-family: "Geist Variable", "Noto Sans Thai Variable", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  button,
+  a,
+  input,
+  textarea,
+  select {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button,
+  a {
+    touch-action: manipulation;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #ffffff;
+  }
+
+  :focus-visible {
+    scroll-margin: 6rem;
+  }
+
+  iframe {
+    border: 0;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; scale: 0.985; }
+  to { opacity: 1; scale: 1; }
+}
+
+@keyframes dialog-out {
+  from { opacity: 1; scale: 1; }
+  to { opacity: 0; scale: 0.985; }
+}
+
+@keyframes loading-slide {
+  0% { transform: translateX(-105%); }
+  50% { transform: translateX(105%); }
+  100% { transform: translateX(305%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .app-chrome {
+    background: var(--surface) !important;
+    backdrop-filter: none !important;
+  }
+
+  .modal-overlay {
+    background: rgb(0 0 0 / 0.76) !important;
+    backdrop-filter: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .border-line,
+  .border-control {
+    border-color: CanvasText;
+  }
+}

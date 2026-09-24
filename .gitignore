@@ -1,8 +1,10 @@
-.wrangler/cache/
+.wrangler/
 node_modules/
 dist/
 .dev.vars
 
 # local / build-time
 .env
+.env.*
+!.env.example
 .design-lab/

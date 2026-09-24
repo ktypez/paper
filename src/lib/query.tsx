@@ -1,6 +1,3 @@
-// TanStack Query setup: infinite receipt lists, single-item fetch,
-// categories with counts, optimistic mutations, IndexedDB persistence.
-import { ReactNode } from "react";
 import {
   QueryClient,
   QueryClientProvider,
@@ -9,142 +6,223 @@ import {
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { persistQueryClient } from "@tanstack/react-query-persist-client";
-import { get, set, del } from "idb-keyval";
-import type { Category, ListParams } from "./api-v2";
+import { useAuth } from "@clerk/clerk-react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import {
-  Receipt,
-  deleteReceipt,
-  getReceipt,
+  createCategory,
+  deleteCategory,
+  deleteDocument,
+  getDocument,
+  getSummary,
   listCategories,
-  listReceipts,
-  updateReceipt,
-} from "./api-v2";
-export type { Category, ListParams };
+  listDocuments,
+  reorderCategories,
+  updateCategory,
+  updateDocument,
+  uploadDocument,
+} from "./api";
+import type { CategoryRecord, DocumentFilters, UploadInput } from "./types";
 
-function createIDBPersister() {
-  return {
-    persistClient: async (client: unknown) => {
-      try {
-        await set("rq-cache", client);
-      } catch {
-        /* quota — skip */
-      }
-    },
-    restoreClient: async () => {
-      try {
-        return await get("rq-cache");
-      } catch {
-        return undefined;
-      }
-    },
-    removeClient: async () => {
-      try {
-        await del("rq-cache");
-      } catch {
-        /* ignore */
-      }
-    },
-  };
-}
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 60_000,
-      gcTime: 24 * 3600_000,
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
+const AuthTokenContext = createContext<() => Promise<string>>(() => {
+  throw new Error("AuthTokenProvider is missing");
 });
 
-let persisted = false;
+function AuthTokenProvider({ children }: { children: ReactNode }) {
+  const { getToken } = useAuth();
+  const readToken = useCallback(async () => {
+    const token = await getToken();
+    if (!token) throw new Error("ยังไม่ได้เข้าสู่ระบบ");
+    return token;
+  }, [getToken]);
+
+  return <AuthTokenContext.Provider value={readToken}>{children}</AuthTokenContext.Provider>;
+}
+
+function useAuthToken() {
+  return useContext(AuthTokenContext);
+}
+
 export function QueryProvider({ children }: { children: ReactNode }) {
-  if (!persisted) {
-    persisted = true;
-    const [, restore] = persistQueryClient({
-      queryClient,
-      persister: createIDBPersister(),
-      maxAge: 7 * 24 * 3600_000,
-      buster: "v2",
-    });
-    restore.catch(() => undefined);
-  }
-  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
-}
-
-export interface ReceiptFilter {
-  category?: string | null;
-  owner?: string | null;
-  q?: string | null;
-}
-
-export function receiptsKey(f: ReceiptFilter) {
-  return ["receipts", f.category ?? "", f.owner ?? "", f.q ?? ""];
-}
-
-export function useReceiptsInfinite(filter: ReceiptFilter, limit = 30) {
-  return useInfiniteQuery({
-    queryKey: receiptsKey(filter),
-    queryFn: ({ pageParam }) =>
-      listReceipts({
-        cursor: pageParam ?? null,
-        limit,
-        category: filter.category,
-        owner: filter.owner,
-        q: filter.q,
+  const { isSignedIn } = useAuth();
+  const [client] = useState(
+    () =>
+      new QueryClient({
+        defaultOptions: {
+          queries: {
+            staleTime: 45_000,
+            gcTime: 15 * 60_000,
+            retry: 1,
+            refetchOnWindowFocus: false,
+          },
+          mutations: {
+            retry: 0,
+          },
+        },
       }),
-    initialPageParam: null as string | null,
-    getNextPageParam: (last) => last.nextCursor,
+  );
+
+  useEffect(() => {
+    if (isSignedIn === false) client.clear();
+  }, [client, isSignedIn]);
+
+  return (
+    <QueryClientProvider client={client}>
+      <AuthTokenProvider>{children}</AuthTokenProvider>
+    </QueryClientProvider>
+  );
+}
+
+export const documentKeys = {
+  all: ["documents"] as const,
+  lists: () => [...documentKeys.all, "list"] as const,
+  list: (filters: DocumentFilters) => [...documentKeys.lists(), filters] as const,
+  detail: (id: string) => [...documentKeys.all, "detail", id] as const,
+};
+
+export const categoryKeys = {
+  all: ["categories"] as const,
+};
+
+export function useDocuments(filters: DocumentFilters = {}, limit = 30, enabled = true) {
+  const readToken = useAuthToken();
+  return useInfiniteQuery({
+    queryKey: documentKeys.list(filters),
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      listDocuments(await readToken(), { cursor: pageParam, limit, filters, signal }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+    enabled,
   });
 }
 
-export function useReceipt(id: string | undefined) {
+export function useDocument(id: string | undefined) {
+  const readToken = useAuthToken();
   return useQuery({
-    queryKey: ["receipt", id],
-    queryFn: () => getReceipt(id!),
-    enabled: !!id,
+    queryKey: documentKeys.detail(id ?? "missing"),
+    queryFn: async ({ signal }) => getDocument(await readToken(), id!, signal),
+    enabled: Boolean(id),
   });
 }
 
 export function useCategories() {
+  const readToken = useAuthToken();
   return useQuery({
-    queryKey: ["categories"],
-    queryFn: listCategories,
-    staleTime: 30_000,
+    queryKey: categoryKeys.all,
+    queryFn: async ({ signal }) => listCategories(await readToken(), signal),
   });
 }
 
-export function useUpdateReceipt() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, patch }: { id: string; patch: Partial<Receipt> }) => updateReceipt(id, patch),
-    onSuccess: (row) => {
-      qc.setQueryData(["receipt", row.id], row);
-      qc.invalidateQueries({ queryKey: ["receipts"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
-    },
+export function useSummary() {
+  const readToken = useAuthToken();
+  return useQuery({
+    queryKey: ["summary"],
+    queryFn: async ({ signal }) => getSummary(await readToken(), signal),
   });
 }
 
-export function useDeleteReceipt() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => deleteReceipt(id),
-    onSuccess: (_v, id) => {
-      qc.removeQueries({ queryKey: ["receipt", id] });
-      qc.invalidateQueries({ queryKey: ["receipts"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
-    },
-  });
-}
-
-/** After an upload completes: refresh lists + categories. */
-export function useAfterUpload() {
-  const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: ["receipts"] });
-    qc.invalidateQueries({ queryKey: ["categories"] });
+function useInvalidateDocumentData() {
+  const client = useQueryClient();
+  return async () => {
+    await Promise.all([
+      client.invalidateQueries({ queryKey: documentKeys.all }),
+      client.invalidateQueries({ queryKey: categoryKeys.all }),
+      client.invalidateQueries({ queryKey: ["summary"] }),
+    ]);
   };
+}
+
+export function useUpdateDocument() {
+  const readToken = useAuthToken();
+  const client = useQueryClient();
+  const invalidate = useInvalidateDocumentData();
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: string; patch: Parameters<typeof updateDocument>[2] }) => {
+      const token = await readToken();
+      return updateDocument(token, id, patch);
+    },
+    onSuccess: async (document) => {
+      client.setQueryData(documentKeys.detail(document.id), document);
+      await invalidate();
+    },
+  });
+}
+
+export function useDeleteDocument() {
+  const readToken = useAuthToken();
+  const client = useQueryClient();
+  const invalidate = useInvalidateDocumentData();
+  return useMutation({
+    mutationFn: async (id: string) => deleteDocument(await readToken(), id),
+    onSuccess: async (_data, id) => {
+      client.removeQueries({ queryKey: documentKeys.detail(id), exact: true });
+      await invalidate();
+    },
+  });
+}
+
+export function useUploadDocument() {
+  const readToken = useAuthToken();
+  const invalidate = useInvalidateDocumentData();
+  return useMutation({
+    mutationFn: async (input: Omit<UploadInput, "token">) => {
+      const token = await readToken();
+      return uploadDocument({ ...input, token });
+    },
+    onSuccess: invalidate,
+  });
+}
+
+export function useCreateCategory() {
+  const readToken = useAuthToken();
+  const invalidate = useInvalidateDocumentData();
+  return useMutation({
+    mutationFn: async (name: string) => createCategory(await readToken(), name),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateCategory() {
+  const readToken = useAuthToken();
+  const client = useQueryClient();
+  const invalidate = useInvalidateDocumentData();
+  return useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) =>
+      updateCategory(await readToken(), id, name),
+    onSuccess: async (category) => {
+      client.setQueryData<CategoryRecord[]>(categoryKeys.all, (current) =>
+        current?.map((item) => (item.id === category.id ? category : item)),
+      );
+      await invalidate();
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const readToken = useAuthToken();
+  const invalidate = useInvalidateDocumentData();
+  return useMutation({
+    mutationFn: async (id: string) => deleteCategory(await readToken(), id),
+    onSuccess: invalidate,
+  });
+}
+
+export function useReorderCategories() {
+  const readToken = useAuthToken();
+  const client = useQueryClient();
+  const invalidate = useInvalidateDocumentData();
+  return useMutation({
+    mutationFn: async (ids: string[]) => reorderCategories(await readToken(), ids),
+    onMutate: async (ids) => {
+      await client.cancelQueries({ queryKey: categoryKeys.all });
+      const previous = client.getQueryData<CategoryRecord[]>(categoryKeys.all);
+      client.setQueryData<CategoryRecord[]>(categoryKeys.all, (current) =>
+        current?.map((category) => ({ ...category, sortOrder: ids.indexOf(category.id) })),
+      );
+      return { previous };
+    },
+    onError: (_error, _ids, context) => {
+      if (context?.previous) client.setQueryData(categoryKeys.all, context.previous);
+    },
+    onSettled: invalidate,
+  });
 }
