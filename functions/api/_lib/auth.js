@@ -3,7 +3,9 @@ const ACCESS_TTL = 5 * 60 * 1000;
 const MAX_ACCESS_ENTRIES = 500;
 
 let jwksCache = { keys: null, expiresAt: 0 };
+let jwksRequest = null;
 const accessCache = new Map();
+const accessRequests = new Map();
 
 function base64UrlToBytes(value) {
   let normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -35,17 +37,27 @@ function jwksUrl(env) {
 
 async function getJwks(env) {
   if (jwksCache.keys && jwksCache.expiresAt > Date.now()) return jwksCache.keys;
-  const url = jwksUrl(env);
-  if (!url) throw new Error("Clerk JWKS is not configured");
+  if (jwksRequest) return jwksRequest;
 
-  const response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
-  if (!response.ok) throw new Error("Clerk JWKS request failed");
-  const payload = await response.json();
-  if (!Array.isArray(payload.keys) || payload.keys.length === 0) {
-    throw new Error("Clerk JWKS is empty");
+  jwksRequest = (async () => {
+    const url = jwksUrl(env);
+    if (!url) throw new Error("Clerk JWKS is not configured");
+
+    const response = await fetch(url, { cf: { cacheTtl: 86400, cacheEverything: true } });
+    if (!response.ok) throw new Error("Clerk JWKS request failed");
+    const payload = await response.json();
+    if (!Array.isArray(payload.keys) || payload.keys.length === 0) {
+      throw new Error("Clerk JWKS is empty");
+    }
+    jwksCache = { keys: payload.keys, expiresAt: Date.now() + JWKS_TTL };
+    return payload.keys;
+  })();
+
+  try {
+    return await jwksRequest;
+  } finally {
+    jwksRequest = null;
   }
-  jwksCache = { keys: payload.keys, expiresAt: Date.now() + JWKS_TTL };
-  return payload.keys;
 }
 
 async function importVerificationKey(jwk) {
@@ -117,18 +129,29 @@ function pruneAccessCache() {
 async function getUserApps(userId, env) {
   const cached = accessCache.get(userId);
   if (cached && cached.expiresAt > Date.now()) return cached.apps;
+  const pending = accessRequests.get(userId);
+  if (pending) return pending;
   if (!env.CLERK_SECRET_KEY) throw new Error("Clerk secret is not configured");
 
-  const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
-    headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
-  });
-  if (!response.ok) throw new Error("Clerk user request failed");
-  const user = await response.json();
-  const apps = Array.isArray(user.private_metadata?.apps) ? user.private_metadata.apps : [];
+  const request = (async () => {
+    const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
+      headers: { Authorization: `Bearer ${env.CLERK_SECRET_KEY}` },
+    });
+    if (!response.ok) throw new Error("Clerk user request failed");
+    const user = await response.json();
+    const apps = Array.isArray(user.private_metadata?.apps) ? user.private_metadata.apps : [];
 
-  pruneAccessCache();
-  accessCache.set(userId, { apps, expiresAt: Date.now() + ACCESS_TTL });
-  return apps;
+    pruneAccessCache();
+    accessCache.set(userId, { apps, expiresAt: Date.now() + ACCESS_TTL });
+    return apps;
+  })();
+  accessRequests.set(userId, request);
+
+  try {
+    return await request;
+  } finally {
+    if (accessRequests.get(userId) === request) accessRequests.delete(userId);
+  }
 }
 
 function bearerToken(request) {
